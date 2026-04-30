@@ -1,22 +1,9 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.12
-    hooks:
-      - id: ruff-format
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-
-  - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.409
-    hooks:
-      - id: pyright
-
   - repo: local
     hooks:
-      - id: pytest
-        name: pytest
-        entry: uv run pytest
+      - id: check
+        name: mise run check
+        entry: mise run check
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-commit]

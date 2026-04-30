@@ -27,8 +27,8 @@ description = "Run tests with pytest"
 run = "uv run pytest"
 
 [tasks.check]
-description = "Run format, lint, typecheck, test, and terraform fmt"
-depends = ["format", "lint", "typecheck", "test", "tf:fmt"]
+description = "Run format, lint, typecheck, test, and terraform fmt+validate"
+depends = ["format", "lint", "typecheck", "test", "tf:fmt", "tf:validate"]
 
 [tasks."tf:fmt"]
 description = "Format Terraform files under infra/terraform"
