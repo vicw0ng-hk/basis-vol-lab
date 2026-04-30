@@ -4,6 +4,8 @@
 
 A cross-venue crypto-derivatives regime monitor ingesting Deribit options and Binance futures/perpetual data. Computes IV, skew, basis, funding, and regime metrics. Targets a deployed, cost-aware serverless stack (Cloudflare Pages/R2/D1 + AWS Lambda) provisioned with Terraform.
 
+> **Current status**: see [`docs/progress.md`](../docs/progress.md) for the latest completed steps and the active next step. Planning details for each step live under `docs/planning/`. Always consult `docs/progress.md` at the start of a session before deciding what to work on.
+
 ### Core Signals
 
 - **Carry-vol divergence score** — percentile-ranked annualized carry vs IV-minus-RV spread.

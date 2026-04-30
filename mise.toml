@@ -29,3 +29,7 @@ run = "uv run pytest"
 [tasks.check]
 description = "Run format, lint, typecheck, and test"
 depends = ["format", "lint", "typecheck", "test"]
+
+[tasks.collect]
+description = "Smoke-run the Deribit collector (BTC, prints a few tickers)"
+run = "uv run python -m basis_connectors.deribit --currency BTC --limit 5"
