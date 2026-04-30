@@ -1,0 +1,9 @@
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+[tools]
+python = "3.14"
+terraform = "1.15"
+
+[settings]
+python.uv_venv_auto = "create|source"
