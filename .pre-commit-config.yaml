@@ -7,7 +7,7 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
 
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.401
+    rev: v1.1.409
     hooks:
       - id: pyright
 

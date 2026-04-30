@@ -27,7 +27,7 @@
 
 ## Next
 
-→ **Step 7** — Cloud rollout: Cloudflare Pages for the static SPA, R2 for artifacts, D1 for metadata, AWS Lambda (container image) for `basis_api`, all provisioned via Terraform / HCP Terraform. Adds `mise run deploy`.
+→ **Step 7** — Cloud rollout: Cloudflare Pages for the static SPA, R2 for artifacts, D1 for metadata, AWS Lambda (container image) for `basis_api`, all provisioned via Terraform / HCP Terraform. Adds `mise run deploy`. Plan: [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 
 ## Notes
 

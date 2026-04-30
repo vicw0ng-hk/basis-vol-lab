@@ -66,7 +66,7 @@ def implied_vol_black76(
     try:
         result = brentq(f, lo, hi, xtol=tol, rtol=tol, maxiter=100)  # type: ignore[arg-type]
         return float(result)  # type: ignore[arg-type]
-    except (ValueError, RuntimeError):
+    except ValueError, RuntimeError:
         return math.nan
 
 
