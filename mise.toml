@@ -1,5 +1,8 @@
 [env]
 _.python.venv = { path = ".venv", create = true }
+BASIS_AWS_REGION = "ap-east-1"
+BASIS_ECR_REPO   = "basis-vol-lab/api"
+BASIS_LAMBDA_FN  = "basis-vol-lab-api"
 
 [tools]
 node = "24"
@@ -42,8 +45,12 @@ terraform -chdir=infra/terraform validate
 """
 
 [tasks.deploy]
-description = "Trigger a Terraform apply via HCP Terraform (interactive approval)."
-run = "terraform -chdir=infra/terraform apply"
+description = "Reminder: infra deploys are VCS-driven via HCP Terraform; push to master and approve in the TFC UI."
+run = """
+echo "Infra is deployed by HCP Terraform on push to master."
+echo "  • Plans:  https://app.terraform.io/app/vsh852/workspaces/basis-vol-lab/runs"
+echo "  • Approve there; do not run \\`terraform apply\\` locally."
+"""
 
 [tasks.collect]
 description = "Smoke-run the Deribit collector (BTC, prints a few tickers)"
@@ -87,3 +94,62 @@ run = "docker compose up --build"
 [tasks."compose:down"]
 description = "Stop the Docker Compose stack"
 run = "docker compose down"
+
+# ── AWS Lambda image lifecycle ─────────────────────────────────────────
+#
+# Infra is provisioned by HCP Terraform on push to master (VCS-driven
+# workspace). The Phase C bootstrap is a two-step dance because
+# `aws_lambda_function` cannot be created until an image already exists
+# in ECR:
+#
+#   1. Merge the Phase C TF change with `var.lambda_image_pushed = false`
+#      (the default). TFC creates ECR + IAM + log group only.
+#   2. `mise run lambda:push` — build + push the first image to ECR.
+#   3. Set the workspace variable `lambda_image_pushed = true` in the
+#      HCP Terraform UI and queue a new plan. TFC creates the Lambda,
+#      the API Gateway, and updates the Pages `VITE_API_URL` env var.
+#
+# Subsequent code-only deploys are just `mise run lambda:push && mise
+# run lambda:update`. Terraform's `lifecycle.ignore_changes = [image_uri]`
+# keeps it from fighting `update-function-code`.
+#
+# All three tasks need local AWS credentials (`aws sso login` or
+# equivalent) and Docker buildx — TFC is *not* in the loop.
+
+[tasks."lambda:build"]
+description = "Build the Lambda container image (arm64) for apps/api"
+run = """
+set -e
+ACCT=$(aws sts get-caller-identity --query Account --output text)
+ECR_URL="$ACCT.dkr.ecr.$BASIS_AWS_REGION.amazonaws.com/$BASIS_ECR_REPO"
+docker buildx build \\
+    --platform=linux/arm64 \\
+    -f apps/api/Dockerfile.lambda \\
+    -t "$ECR_URL:latest" \\
+    --load .
+"""
+
+[tasks."lambda:push"]
+description = "Build and push the Lambda image to ECR"
+depends = ["lambda:build"]
+run = """
+set -e
+ACCT=$(aws sts get-caller-identity --query Account --output text)
+ECR_URL="$ACCT.dkr.ecr.$BASIS_AWS_REGION.amazonaws.com/$BASIS_ECR_REPO"
+aws ecr get-login-password --region "$BASIS_AWS_REGION" \\
+    | docker login --username AWS --password-stdin "$ACCT.dkr.ecr.$BASIS_AWS_REGION.amazonaws.com"
+docker push "$ECR_URL:latest"
+"""
+
+[tasks."lambda:update"]
+description = "Point the live Lambda at the latest ECR image"
+run = """
+set -e
+ACCT=$(aws sts get-caller-identity --query Account --output text)
+ECR_URL="$ACCT.dkr.ecr.$BASIS_AWS_REGION.amazonaws.com/$BASIS_ECR_REPO"
+aws lambda update-function-code \\
+    --function-name "$BASIS_LAMBDA_FN" \\
+    --image-uri "$ECR_URL:latest" \\
+    --region "$BASIS_AWS_REGION" >/dev/null
+echo "lambda updated: $BASIS_LAMBDA_FN"
+"""

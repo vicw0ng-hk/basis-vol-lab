@@ -1,0 +1,64 @@
+# --------------------------------------------------------------------
+# AWS Lambda container image for `basis_api`.
+#
+# We base on the standard `python:3.14-slim` image (the project pins
+# Python 3.14 and the AWS public ECR `lambda/python` image lags behind
+# upstream releases) and add the AWS Lambda Runtime Interface Client
+# `awslambdaric` ourselves. The handler is `basis_api.main.handler`,
+# which is a `mangum.Mangum` adapter wrapping the FastAPI app.
+#
+# Build for `linux/arm64` to land on the cheaper Graviton Lambdas:
+#
+#     docker buildx build \
+#         --platform=linux/arm64 \
+#         -f apps/api/Dockerfile.lambda \
+#         -t <ecr_uri>:latest \
+#         --push .
+#
+# Compose (local dev) keeps using `apps/api/Dockerfile`, which serves
+# the same FastAPI app via uvicorn.
+# --------------------------------------------------------------------
+
+FROM python:3.14-slim AS builder
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_NO_PROGRESS=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+COPY --from=ghcr.io/astral-sh/uv:0.5.8 /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+# Workspace manifests first for caching.
+COPY pyproject.toml uv.lock ./
+COPY packages/contracts/pyproject.toml packages/contracts/pyproject.toml
+COPY packages/persistence/pyproject.toml packages/persistence/pyproject.toml
+COPY packages/connectors/pyproject.toml packages/connectors/pyproject.toml
+COPY packages/analytics/pyproject.toml packages/analytics/pyproject.toml
+COPY apps/api/pyproject.toml apps/api/pyproject.toml
+COPY apps/web/pyproject.toml apps/web/pyproject.toml
+
+COPY packages/contracts/src packages/contracts/src
+COPY packages/persistence/src packages/persistence/src
+COPY packages/connectors/src packages/connectors/src
+COPY packages/analytics/src packages/analytics/src
+COPY apps/api/src apps/api/src
+
+RUN uv sync --frozen --package basis-api --no-dev \
+    && uv pip install --python /app/.venv/bin/python awslambdaric
+
+# --------------------------------------------------------------------
+FROM python:3.14-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH" \
+    BASIS_DATA_DIR=/tmp/data
+
+WORKDIR /app
+
+COPY --from=builder /app /app
+
+ENTRYPOINT ["/app/.venv/bin/python", "-m", "awslambdaric"]
+CMD ["basis_api.main.handler"]

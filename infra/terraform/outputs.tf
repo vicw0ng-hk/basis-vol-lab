@@ -41,3 +41,20 @@ output "pages_subdomain" {
   description = "Default <project>.pages.dev hostname assigned by Cloudflare."
   value       = cloudflare_pages_project.basis_web.subdomain
 }
+
+# ── Phase C — AWS resources ─────────────────────────────────────────────
+
+output "ecr_repository_url" {
+  description = "ECR repo holding the Lambda container image. Used by `mise run lambda:push`."
+  value       = aws_ecr_repository.api.repository_url
+}
+
+output "lambda_function_name" {
+  description = "Name of the Lambda function (null until var.lambda_image_pushed = true)."
+  value       = try(aws_lambda_function.api[0].function_name, null)
+}
+
+output "api_endpoint" {
+  description = "API Gateway HTTP API invoke URL (null until var.lambda_image_pushed = true)."
+  value       = try(aws_apigatewayv2_api.basis_api[0].api_endpoint, null)
+}

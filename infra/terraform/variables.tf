@@ -27,3 +27,16 @@ variable "project_name" {
   description = "Short project slug used as a prefix for cloud resources."
   default     = "basis-vol-lab"
 }
+
+variable "lambda_image_pushed" {
+  type        = bool
+  description = <<-EOT
+    Phase C bootstrap gate. While `false`, Terraform provisions ECR + IAM
+    + the log group only. After running `mise run lambda:push` to publish
+    the first image to ECR, flip this to `true` (set the variable in the
+    HCP Terraform workspace UI and queue a new plan) so the Lambda + API
+    Gateway + Pages `VITE_API_URL` resources can be created against the
+    image that now exists.
+  EOT
+  default     = false
+}
