@@ -10,7 +10,7 @@
 - **Step 6 — MVP product shell** — snapshot orchestrator (`basis_api.snapshot`) wires connectors → `TimeSeriesStore` and emits curated JSON artifacts; FastAPI service (`basis_api.main`) serves the artifacts and exposes `POST /api/refresh`; Vite/React/Tailwind v4 SPA with light/dark toggle and four pages (Overview, Volatility, Carry, Signals); Dockerfiles for both apps and a `compose.yaml` that runs end-to-end on **OrbStack**. **This closes the local MVP.**
 - **Step 7 (Phase A) — Terraform skeleton** — flat layout under [`infra/terraform/`](../infra/terraform/) (single HCP Terraform workspace `basis-vol-lab` in org `vsh852`, `cloudflare` + `aws` + `random` providers, AWS auth via OIDC dynamic credentials matching `~/dev/aws/bootstrap-oidc/`, Cloudflare account/zone IDs discovered at plan time via `data "cloudflare_zone"` keyed on `var.domain` (`vsh852.com`)). `mise run tf:fmt` / `tf:validate` wired and `check` now depends on `tf:fmt`. CI consolidated into a single [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) with a `terraform-fmt-validate` job (action versions bumped to current latest: `actions/checkout@v6`, `astral-sh/setup-uv@v8`, `hashicorp/setup-terraform@v4`). TFC workspace and OIDC role configured by the operator; first remote plan succeeds. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 - **Step 7 (Phase B) — Cloudflare resources** — [`infra/terraform/main.tf`](../infra/terraform/main.tf) defines `cloudflare_r2_bucket.basis_artifacts` (`basis-vol-lab-artifacts`, apac, public access disabled), `cloudflare_r2_bucket_lifecycle.basis_artifacts` (deletes `parquet/` objects after 30 days, aborts dangling multipart uploads after 24 h), `cloudflare_d1_database.basis_meta` (`basis-vol-lab-meta`, apac primary), and `cloudflare_pages_project.basis_web` (`basis-vol-lab`, GitHub source `vicw0ng-hk/basis-vol-lab`, prod branch `master`, `root_dir=apps/web`, build `npm ci && npm run build` → `dist`, Pages Functions disabled, `SKIP_DEPENDENCY_INSTALL=true` env var on prod+preview deploy configs). First production deploy is live at `https://basis-vol-lab.pages.dev/`. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
-- **Step 7 (Phase C) — AWS Lambda + API Gateway (infra ready, awaiting bootstrap dance)** — [`infra/terraform/main.tf`](../infra/terraform/main.tf) defines `aws_ecr_repository.api` (`basis-vol-lab/api`, mutable, scan-on-push, untagged-after-7-days lifecycle), `aws_iam_role.lambda_exec` with a least-privilege inline policy for CloudWatch Logs only, `aws_cloudwatch_log_group.api` (`/aws/lambda/basis-vol-lab-api`, 3-day retention), `aws_lambda_function.api` (container `package_type=Image`, `arm64`, 1024 MB / 30 s / 1 GB ephemeral, `lifecycle.ignore_changes=[image_uri]`), and an `aws_apigatewayv2_api` (HTTP API, `$default` route → Lambda integration, CORS pinned to `https://basis-vol-lab.pages.dev`). The Lambda + APIGW + Pages `VITE_API_URL` env var are gated on a new TFC workspace variable `lambda_image_pushed` (default `false`) — the HCP Terraform workspace is **VCS-driven** so `terraform apply -target=...` from the laptop isn't available; the gate expresses the two-phase apply that ECR bootstrap demands. Bootstrap order: (1) merge PR with `lambda_image_pushed=false` → TFC creates ECR + IAM + log group, (2) `mise run lambda:push` builds/pushes the first image, (3) flip `lambda_image_pushed=true` in the TFC UI → TFC creates Lambda + APIGW and updates the Pages env var. New [`apps/api/Dockerfile.lambda`](../apps/api/Dockerfile.lambda) (uv-managed builder + `awslambdaric` on `python:3.14-slim`). New mise tasks `lambda:build` / `lambda:push` / `lambda:update` derive ECR URL + login from `aws sts get-caller-identity`, so they work between TFC applies without Terraform outputs. `mise run deploy` is now just a reminder banner pointing at the TFC runs page. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
+- **Step 7 (Phase C) — AWS Lambda + API Gateway** — [`infra/terraform/main.tf`](../infra/terraform/main.tf) defines `aws_ecr_repository.api` (`basis-vol-lab/api`, mutable, scan-on-push, untagged-after-7-days lifecycle), `aws_iam_role.lambda_exec` with a least-privilege inline policy for CloudWatch Logs only, `aws_cloudwatch_log_group.api` (`/aws/lambda/basis-vol-lab-api`, 3-day retention), `aws_lambda_function.api` (container `package_type=Image`, `arm64`, 1024 MB / 30 s / 1 GB ephemeral, `lifecycle.ignore_changes=[image_uri]`), and an `aws_apigatewayv2_api` (HTTP API, `$default` route → Lambda integration, CORS pinned to `https://basis-vol-lab.pages.dev`). The Lambda + APIGW + Pages `VITE_API_URL` env var are gated on a TFC workspace variable `lambda_image_pushed` (default `false`) — the HCP Terraform workspace is VCS-driven so `terraform apply -target=...` from the laptop isn't available; the gate expresses the two-phase apply that ECR bootstrap demands. Bootstrap completed 2026-05-01: (1) PR with `lambda_image_pushed=false` merged → TFC created ECR + IAM + log group, (2) `mise run lambda:push` built and pushed the first arm64 image, (3) flipped `lambda_image_pushed=true` in the TFC UI → TFC created Lambda + APIGW and updated the Pages env var. Smoke test (`curl $API_URL/healthz`, `POST /api/refresh`, `GET /api/overview`) green against the live `https://<api-id>.execute-api.ap-east-1.amazonaws.com` invoke URL. New [`apps/api/Dockerfile.lambda`](../apps/api/Dockerfile.lambda) (uv-managed builder + `awslambdaric` on `python:3.14-slim`). New mise tasks `lambda:build` / `lambda:push` / `lambda:update` derive ECR URL + login from `aws sts get-caller-identity`. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 
 ## Abandoned
 
@@ -27,20 +27,28 @@
 - **Rolling-percentile signals in `/api/signals`** — until the snapshot store has accumulated several weeks of history, the signals page surfaces the raw funding-vs-carry inputs and notes the limitation.
 - **Historical replay page** — fifth page from the original plan; deferred behind cloud deployment.
 - **D1 schema migrations directory (`packages/persistence/migrations/`).** Generated from the SQLite DDL once the `D1MetadataStore` sibling lands in Phase D; until then the local SQLite path is the only live MetadataStore implementation.
-- **R2 artifact backend in `basis_api`.** Phase C ships the Lambda packaging only; reads/writes still hit local `/tmp/data`, so a single warm container is required for a refresh + read round trip. Phase D switches `_load`/`run_snapshot` to an `ArtifactStore` protocol with `LocalArtifactStore` + `R2ArtifactStore` implementations and adds the `D1MetadataStore` sibling.
+- **R2 artifact backend in `basis_api`.** Lambda is live (Phase C
+  done) but still reads/writes local `/tmp/data`, so a single warm
+  container is required for a refresh + read round trip. Phase D
+  switches `_load`/`run_snapshot` to an `ArtifactStore` protocol with
+  `LocalArtifactStore` + `R2ArtifactStore` implementations and adds
+  the `D1MetadataStore` sibling.
 - **Pages `_redirects` rewrite for `/api/*`.** Replaced by a `VITE_API_URL` env var in the Pages deployment config — the SPA calls API Gateway cross-origin and CORS is open to the pages.dev subdomain. No `_redirects` file is shipped.
 
 ## Next
 
-→ **Step 7 — Phase C bootstrap + Phase D (R2/D1 wiring)**.
-Operator: merge the Phase C PR (TFC plans + applies ECR + IAM + log
-group), then `mise run lambda:push`, then flip
-`lambda_image_pushed=true` in the TFC workspace UI to apply Lambda +
-APIGW. Once `/healthz` answers, proceed to Phase D: introduce
-`LocalArtifactStore`/`R2ArtifactStore` in `basis_api.storage`, switch
-`snapshot.run_snapshot` to the protocol, add the `D1MetadataStore`
-sibling, and ship the `packages/persistence/migrations/` directory.
-Plan: [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
+→ **Step 7 — Phase D (R2/D1 wiring)**. Lambda is live but still
+reads/writes `/tmp/data`, so each cold start sees an empty artifacts
+dir until the first `POST /api/refresh` repopulates it. Phase D:
+introduce an `ArtifactStore` protocol in `basis_api.storage` with
+`LocalArtifactStore` + `R2ArtifactStore` (boto3 against the R2
+S3-compatible endpoint) implementations, switch
+`snapshot.run_snapshot` and `_load` to it, add the `D1MetadataStore`
+sibling in `basis_persistence`, ship the
+`packages/persistence/migrations/` directory, set
+`BASIS_ARTIFACT_BACKEND=r2` + `R2_*` env vars on the Lambda, and
+add the GitHub Actions `*/15` snapshot cron (Phase E in the cloud
+plan). Plan: [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 
 ## Notes
 
