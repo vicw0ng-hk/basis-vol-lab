@@ -36,6 +36,21 @@ line-length = 88
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "N"]
 
+[tool.ruff.lint.per-file-ignores]
+# Math modules use single-letter capital names by convention (F = forward,
+# K = strike, T = time-to-expiry). Same applies to tests that exercise them.
+"packages/analytics/src/basis_analytics/pricing.py" = ["N803", "N806"]
+"packages/analytics/src/basis_analytics/iv.py" = ["N803", "N806"]
+"packages/analytics/src/basis_analytics/greeks.py" = ["N803", "N806"]
+"packages/analytics/src/basis_analytics/surface.py" = ["N803", "N806"]
+"packages/analytics/src/basis_analytics/realized_vol.py" = ["N803", "N806"]
+"packages/analytics/src/basis_analytics/validate.py" = ["N803", "N806"]
+"packages/analytics/src/basis_analytics/validation.py" = ["N803", "N806"]
+"tests/test_pricing.py" = ["N803", "N806"]
+"tests/test_iv.py" = ["N803", "N806"]
+"tests/test_greeks.py" = ["N803", "N806"]
+"tests/test_validation.py" = ["N803", "N806"]
+
 [tool.pyright]
 venvPath = "."
 venv = ".venv"

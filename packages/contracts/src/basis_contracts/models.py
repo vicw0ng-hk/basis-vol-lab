@@ -34,6 +34,8 @@ class TickerSnapshot:
     mark_iv: float | None = None
     open_interest: float | None = None
     funding_rate: float | None = None
+    expiry: datetime | None = None
+    strike: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

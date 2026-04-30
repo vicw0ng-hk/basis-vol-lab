@@ -32,7 +32,6 @@ basis-vol-lab/
   apps/
     web/          # Static front end (Cloudflare Pages)
     api/          # Thin dynamic endpoints (AWS Lambda)
-    desktop/      # Optional PySide6 operator console
   packages/
     connectors/   # Async WebSocket/REST collectors (Deribit, Binance)
     analytics/    # Pandas/NumPy/SciPy analytics & signal computation

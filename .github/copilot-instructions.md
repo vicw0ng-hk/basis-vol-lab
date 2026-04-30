@@ -19,7 +19,6 @@ basis-vol-lab/
   apps/
     web/          # static front end (Cloudflare Pages)
     api/          # thin dynamic endpoints (AWS Lambda)
-    desktop/      # optional PySide6 operator console
   packages/
     connectors/   # async WebSocket/REST collectors (Deribit, Binance)
     analytics/    # pandas/numpy/scipy analytics & signal computation
@@ -185,14 +184,13 @@ Confirm all four pass before considering a task complete.
 
 ## Scope Priorities (cut order if schedule is tight)
 
-1. ✂️ Desktop wrapper (cut first)
-2. ✂️ Always-on streaming
-3. ✂️ Fancy UI polish
-4. 🔒 Core analytics package (never cut)
-5. 🔒 Validation report (never cut)
-6. 🔒 Test suite (never cut)
-7. 🔒 Deployed demo (never cut)
-8. 🔒 Benchmark notes (never cut)
+1. ✂️ Always-on streaming (cut first)
+2. ✂️ Fancy UI polish
+3. 🔒 Core analytics package (never cut)
+4. 🔒 Validation report (never cut)
+5. 🔒 Test suite (never cut)
+6. 🔒 Deployed demo (never cut)
+7. 🔒 Benchmark notes (never cut)
 
 ---
 

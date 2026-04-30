@@ -25,6 +25,8 @@ TICKER_SCHEMA = pa.schema(
         pa.field("mark_iv", pa.float64(), nullable=True),
         pa.field("open_interest", pa.float64(), nullable=True),
         pa.field("funding_rate", pa.float64(), nullable=True),
+        pa.field("expiry", pa.timestamp("us", tz="UTC"), nullable=True),
+        pa.field("strike", pa.float64(), nullable=True),
     ]
 )
 
@@ -44,6 +46,8 @@ def _snapshots_to_table(snapshots: list[TickerSnapshot]) -> pa.Table:
             "mark_iv": [s.mark_iv for s in snapshots],
             "open_interest": [s.open_interest for s in snapshots],
             "funding_rate": [s.funding_rate for s in snapshots],
+            "expiry": [s.expiry for s in snapshots],
+            "strike": [s.strike for s in snapshots],
         },
         schema=TICKER_SCHEMA,
     )
@@ -70,6 +74,8 @@ def _table_to_snapshots(table: pa.Table) -> list[TickerSnapshot]:
                     mark_iv=batch.column("mark_iv")[i].as_py(),
                     open_interest=batch.column("open_interest")[i].as_py(),
                     funding_rate=batch.column("funding_rate")[i].as_py(),
+                    expiry=batch.column("expiry")[i].as_py(),
+                    strike=batch.column("strike")[i].as_py(),
                 )
             )
     return snapshots

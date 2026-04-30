@@ -133,7 +133,7 @@ def parse_ticker(raw: dict[str, Any]) -> TickerSnapshot:
     decoded = parse_instrument_name(name)
     if decoded is None:
         raise ValueError(f"unsupported Deribit instrument name: {name!r}")
-    currency, kind, _expiry, _strike = decoded
+    currency, kind, expiry, strike = decoded
 
     ts_ms = int(raw["timestamp"])
     timestamp = datetime.fromtimestamp(ts_ms / 1000, tz=UTC)
@@ -160,4 +160,6 @@ def parse_ticker(raw: dict[str, Any]) -> TickerSnapshot:
         mark_iv=mark_iv,
         open_interest=float(oi_raw) if oi_raw is not None else None,
         funding_rate=funding_rate,
+        expiry=expiry if kind is not AssetKind.PERPETUAL else None,
+        strike=strike if kind is AssetKind.OPTION else None,
     )

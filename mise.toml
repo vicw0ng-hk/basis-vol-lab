@@ -37,3 +37,7 @@ run = "uv run python -m basis_connectors.deribit --currency BTC --limit 5"
 [tasks."collect:binance"]
 description = "Smoke-run the Binance collector against live prod fstream"
 run = "uv run python -m basis_connectors.binance --symbols BTCUSDT ETHUSDT --limit 10"
+
+[tasks.validate]
+description = "Run the IV-validation report against live Deribit"
+run = "uv run python -m basis_analytics --currency BTC"
