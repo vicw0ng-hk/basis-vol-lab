@@ -95,6 +95,30 @@ resource "cloudflare_pages_project" "basis_web" {
     root_dir        = "/"
   }
 
+  # Cloudflare Pages auto-detects build tooling at the repo root and
+  # otherwise tries `pip install .` against the top-level pyproject.toml,
+  # which fails because the uv workspace root is not a setuptools project.
+  # `SKIP_DEPENDENCY_INSTALL` short-circuits that auto-install — `npm ci`
+  # in the build command is the only dependency step we need.
+  deployment_configs = {
+    production = {
+      env_vars = {
+        SKIP_DEPENDENCY_INSTALL = {
+          type  = "plain_text"
+          value = "true"
+        }
+      }
+    }
+    preview = {
+      env_vars = {
+        SKIP_DEPENDENCY_INSTALL = {
+          type  = "plain_text"
+          value = "true"
+        }
+      }
+    }
+  }
+
   source = {
     type = "github"
     config = {

@@ -79,6 +79,11 @@ the Lambda env (Phase C) and the GitHub Actions secrets store
   assumes the Cloudflare account already has the
   `vicw0ng-hk/basis-vol-lab` GitHub installation authorised for Pages.
   This must be done once via the dashboard before `terraform apply`.
+- **`SKIP_DEPENDENCY_INSTALL=true` build env var.** Set on both the
+  production and preview deployment configs to stop Cloudflare Pages
+  from running `pip install .` against the workspace root (which fails
+  because it is not a setuptools project). `npm ci` inside the build
+  command is the only dependency step we need.
 - **Custom domain (`basis.vsh852.com`).** Wired in Phase F together
   with the API Gateway DNS record.
 
