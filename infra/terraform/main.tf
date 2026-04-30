@@ -67,6 +67,9 @@ resource "cloudflare_d1_database" "basis_meta" {
   account_id            = local.account_id
   name                  = "${var.project_name}-meta"
   primary_location_hint = "apac"
+  read_replication = {
+    mode = "disabled"
+  }
 }
 
 # ── Pages project ───────────────────────────────────────────────────────
