@@ -7,6 +7,7 @@
 - **Step 3** — Deribit connector (REST instrument discovery + WebSocket ticker stream with heartbeats and reconnect). See [`docs/planning/4.step3-deribit-connector.md`](planning/4.step3-deribit-connector.md).
 - **Step 4** — Binance connector (REST instrument discovery + funding/basis/OI backfills + mark-price WebSocket stream). See [`docs/planning/5.step4-binance-connector.md`](planning/5.step4-binance-connector.md).
 - **Step 5** — Analytics package: Black-76 pricer + IV inversion (Brent) + analytic Greeks + realized-vol estimators + carry/funding helpers + smile/term-structure interpolation + the three headline signals + an IV-validation CLI. Live validation against Deribit shows p95 IV error < 0.005 vol points on liquid expiries (30D+). See [`docs/planning/6.step5-analytics.md`](planning/6.step5-analytics.md). Six-lecture markdown course under [`docs/analytics/`](analytics/README.md).
+- **Step 6 — MVP product shell** — snapshot orchestrator (`basis_api.snapshot`) wires connectors → `TimeSeriesStore` and emits curated JSON artifacts; FastAPI service (`basis_api.main`) serves the artifacts and exposes `POST /api/refresh`; Vite/React/Tailwind v4 SPA with light/dark toggle and four pages (Overview, Volatility, Carry, Signals); Dockerfiles for both apps and a `compose.yaml` that runs end-to-end on **OrbStack**. See [`docs/planning/7.step6-product-shell.md`](planning/7.step6-product-shell.md). **This closes the local MVP.**
 
 ## Abandoned
 
@@ -15,20 +16,23 @@
 ## Deferred
 
 - **Authenticated Deribit channels** (e.g. `ticker.*.raw`) — public `100ms` interval is sufficient for the MVP; revisit if/when we need raw-rate updates.
-- **Persisting connector output to `MetadataStore` / `TimeSeriesStore`** — connectors emit domain objects; wiring to storage is the next step's concern (step 6).
+- **Always-on streaming snapshot loop** — MVP is one-shot snapshots via `mise run snapshot` or `POST /api/refresh`. A scheduled cron / background loop is a step-7 concern.
 - **Binance COIN-margined futures, options, spot, user-data streams** — out of MVP scope.
 - **Greek validation report** — step 5 validates IV only; once IV ties out, Greek mismatches against Deribit are unit conversions handled downstream. Add as a follow-on if useful.
 - **SVI / SABR surface fits** — current MVP uses PCHIP smile interpolation; parametric fits are future research.
 - **Backtests of the headline signals** — signals are interpretable on inspection; backtesting is deferred so we don't blow the schedule.
-- `mise run backfill` — to be wired when we add a scheduled historical-collection job.
-- `mise run build:web` — wired when the static front end exists (step 6).
-- `mise run deploy` — wired when cloud deployment lands (step 6+).
+- **Rolling-percentile signals in `/api/signals`** — until the snapshot store has accumulated several weeks of history, the signals page surfaces the raw funding-vs-carry inputs and notes the limitation.
+- **Historical replay page** — fifth page from the original plan; deferred behind cloud deployment.
+- `mise run deploy` — wired when cloud deployment lands (step 7).
 
 ## Next
 
-→ **Step 6** — Product shell: thin API endpoints (FastAPI in a Lambda-friendly shape) + static web front end, both reading curated artifacts. Wire connectors → `TimeSeriesStore` and run a scheduled snapshot. Compose locally with Docker.
+→ **Step 7** — Cloud rollout: Cloudflare Pages for the static SPA, R2 for artifacts, D1 for metadata, AWS Lambda (container image) for `basis_api`, all provisioned via Terraform / HCP Terraform. Adds `mise run deploy`.
 
 ## Notes
+
+- **MVP is live locally.** `mise run snapshot && mise run api` (in one shell) plus `mise run web:dev` (in another) gives a fully functional dashboard at `http://localhost:5173`. `docker compose up --build` brings up the same stack on **OrbStack** (no extra config — OrbStack speaks the standard Docker socket; the bind mount on `./data` round-trips correctly via VirtIOFS).
+- **Snapshot resilience** — `_safe_pull` wraps each Binance REST call so an IP rate-limit or 418 (`-1003 Way too many requests`) on `/futures/data/*` doesn't abort the whole snapshot; the affected card just renders empty and the next refresh recovers. Hit during step 6 dev when limit=288 tripped a temporary 30-hour ban; limits are now ≤100/period.
 
 - **Production Binance WebSocket** — Initially hit silent timeouts from Hong Kong and assumed a geo-block. **Root cause was actually Binance's 2026-04-23 base-URL migration**: legacy `/ws` and `/stream` paths still accept connections and SUBSCRIBE ACKs but no longer deliver `/market` channels (markPrice, aggTrade, kline, ticker, forceOrder, etc.). Connector now uses `wss://fstream.binance.com/market/stream?streams=...` and works directly from HK with no VPN. Deployment caveat is just the formal Binance Futures restricted-country list (US, Canada, Netherlands, Cuba, Iran, North Korea, Crimea/Donetsk/Luhansk) — avoid AWS `us-east-1` / `us-west-2`; everything else (Tokyo, Singapore, Ireland, Frankfurt) is fine.
 - **TickerSnapshot gained `expiry` and `strike` fields** in step 5 so option snapshots are self-describing for analytics. The Parquet schema (`TICKER_SCHEMA`) was extended to match; new files include both columns nullable.

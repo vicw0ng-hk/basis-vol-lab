@@ -41,3 +41,34 @@ run = "uv run python -m basis_connectors.binance --symbols BTCUSDT ETHUSDT --lim
 [tasks.validate]
 description = "Run the IV-validation report against live Deribit"
 run = "uv run python -m basis_analytics --currency BTC"
+
+[tasks.snapshot]
+description = "Pull one Deribit + Binance snapshot and write curated JSON artifacts under data/"
+run = "uv run python -m basis_api.snapshot --data-dir data"
+
+[tasks.api]
+description = "Run the FastAPI service (uvicorn) on :8000"
+run = "uv run python -m basis_api --reload"
+
+[tasks."web:install"]
+description = "Install web (Vite/React) dependencies"
+dir = "apps/web"
+run = "npm install"
+
+[tasks."web:dev"]
+description = "Run the Vite dev server (proxies /api to localhost:8000)"
+dir = "apps/web"
+run = "npm run dev"
+
+[tasks."build:web"]
+description = "Build the static web bundle (apps/web/dist)"
+dir = "apps/web"
+run = "npm run build"
+
+[tasks."compose:up"]
+description = "Start the API + web stack via Docker Compose (works with OrbStack)"
+run = "docker compose up --build"
+
+[tasks."compose:down"]
+description = "Stop the Docker Compose stack"
+run = "docker compose down"

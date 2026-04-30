@@ -5,8 +5,12 @@ and Binance USD-margined futures/perpetuals, computes IV, skew, basis,
 funding, and open-interest metrics, and surfaces three headline signals
 designed to make a current market regime legible at a glance.
 
-> **Status**: MVP under active construction. Tracked in [`docs/progress.md`](docs/progress.md).
-> The implementation plan lives in [`docs/planning/`](docs/planning/), starting with [`1.initial-plan.md`](docs/planning/1.initial-plan.md).
+> **Status**: MVP **shipped locally** as of step 6 — snapshot orchestrator,
+> FastAPI service, and Vite/React/Tailwind dashboard with light/dark toggle,
+> all wired into a Docker Compose stack that runs on OrbStack or Docker
+> Desktop. Tracked in [`docs/progress.md`](docs/progress.md). The
+> implementation plan lives in [`docs/planning/`](docs/planning/), starting
+> with [`1.initial-plan.md`](docs/planning/1.initial-plan.md).
 
 ## What it does
 
@@ -84,6 +88,49 @@ mise run collect
 mise run collect:binance
 ```
 
+## Running the dashboard locally
+
+The MVP ships with a snapshot orchestrator, a FastAPI service, and a
+Vite/React SPA. There are two equivalent ways to run it.
+
+### Option A — host processes (fast iteration)
+
+```bash
+# 1) Pull one Deribit + Binance snapshot and write artifacts under data/
+mise run snapshot
+
+# 2) In one shell: serve the JSON artifacts on http://localhost:8000
+mise run api
+
+# 3) In another shell: open the SPA on http://localhost:5173
+mise run web:install   # first time only
+mise run web:dev
+```
+
+The SPA dev server proxies `/api` to `localhost:8000`, so the four pages
+(**Overview**, **Volatility**, **Carry**, **Signals**) light up immediately.
+The header **Refresh** button calls `POST /api/refresh`, which re-runs the
+snapshot in-process.
+
+### Option B — Docker Compose (matches deployment shape)
+
+```bash
+mise run compose:up           # docker compose up --build
+# → http://localhost:5173 (web, nginx) and http://localhost:8000 (api)
+```
+
+This works on **OrbStack** without any extra configuration: OrbStack
+exposes the standard Docker socket, and the bind mount on `./data`
+round-trips between the host and containers via VirtIOFS, so a
+`mise run snapshot` on the host is immediately visible to the API
+container (and vice versa via `POST /api/refresh`).
+
+### Theme toggle
+
+The header has a sun/moon button that flips between light and dark themes.
+Preference is persisted in `localStorage` and falls back to
+`prefers-color-scheme` on first load.
+
 ## Tooling
 
 | Concern                           | Tool                          |
@@ -96,7 +143,11 @@ mise run collect:binance
 | Type checking                     | `pyright`                     |
 | Testing                           | `pytest`                      |
 | Pre-commit hooks                  | `pre-commit`                  |
-| Containers (local dev)            | Docker Compose                |
+| Containers (local dev)            | Docker Compose / OrbStack     |
+| Web framework                     | Vite + React 18 + TypeScript  |
+| Web styling                       | Tailwind CSS v4               |
+| Web charts                        | Recharts                      |
+| API framework                     | FastAPI + uvicorn (Mangum on Lambda) |
 | CI                                | GitHub Actions                |
 | IaC                               | Terraform (HCP Terraform)     |
 

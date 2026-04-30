@@ -44,7 +44,11 @@ This is a uv workspace monorepo. Each `packages/*` and `apps/*` directory is a w
 | Python virtual environment | managed by `uv` via `.venv` |
 | Non-Python tool versions | `mise` (node, terraform, wrangler, awscli, etc.) |
 | Project tasks (lint, test, build) | `mise` tasks or `uv run` |
-| Containers (local dev) | Docker Compose (`compose.yaml`) |
+| Web framework | Vite + React 18 + TypeScript |
+| Web styling | Tailwind CSS v4 (CSS-variables, `.dark` class) |
+| Web charts | Recharts |
+| API framework | FastAPI + uvicorn (Mangum on Lambda) |
+| Containers (local dev) | Docker Compose (`compose.yaml`), OrbStack-tested |
 | CI/CD | GitHub Actions |
 | IaC | Terraform (HCP Terraform remote state) |
 

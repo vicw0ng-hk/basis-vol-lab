@@ -5,9 +5,18 @@ description = "Thin dynamic endpoints (AWS Lambda)"
 requires-python = ">=3.14"
 dependencies = [
     "basis-analytics",
+    "basis-connectors",
+    "basis-contracts",
     "basis-persistence",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "mangum>=0.18",
+    "httpx>=0.27",
+    "pandas>=2.2",
 ]
 
 [tool.uv.sources]
 basis-analytics = { workspace = true }
+basis-connectors = { workspace = true }
+basis-contracts = { workspace = true }
 basis-persistence = { workspace = true }

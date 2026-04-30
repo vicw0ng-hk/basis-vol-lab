@@ -1,0 +1,40 @@
+# Two-service local stack for the Basis & Vol Lab MVP.
+#
+# `docker compose up --build` (or OrbStack's `orb compose up`) starts:
+#   - api: FastAPI + uvicorn on :8000, reads/writes ./data
+#   - web: nginx serving the built React SPA on :5173, proxying /api -> api
+#
+# Both share the host's ./data directory as a bind mount so `mise run snapshot`
+# on the host and POST /api/refresh from a container update the same artifacts.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: basis-vol-lab-api:dev
+    container_name: basis-api
+    ports:
+      - "8000:8000"
+    environment:
+      BASIS_DATA_DIR: /app/data
+      BASIS_CORS_ORIGINS: "*"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: basis-vol-lab-web:dev
+    container_name: basis-web
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    restart: unless-stopped

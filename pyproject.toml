@@ -9,6 +9,7 @@ dependencies = [
     "basis-connectors",
     "basis-analytics",
     "basis-persistence",
+    "basis-api",
 ]
 
 [dependency-groups]
@@ -28,6 +29,7 @@ basis-contracts = { workspace = true }
 basis-connectors = { workspace = true }
 basis-analytics = { workspace = true }
 basis-persistence = { workspace = true }
+basis-api = { workspace = true }
 
 [tool.ruff]
 target-version = "py314"
