@@ -88,18 +88,22 @@ resource "cloudflare_pages_project" "basis_web" {
   name              = var.project_name
   production_branch = "master"
 
+  # Scope the build to `apps/web/`. Pages auto-detects build tooling at
+  # `root_dir`, so this hides the workspace-root `pyproject.toml` from
+  # the detector — that file is a uv workspace manifest, not a
+  # setuptools project, and Pages would otherwise abort with
+  # "Multiple top-level packages discovered in a flat-layout". The
+  # `apps/web/pyproject.toml` left in scope only declares the workspace
+  # member; it has no runtime deps and `pip install .` is a near-no-op.
   build_config = {
     build_caching   = true
-    build_command   = "cd apps/web && npm ci && npm run build"
-    destination_dir = "apps/web/dist"
-    root_dir        = "/"
+    build_command   = "npm ci && npm run build"
+    destination_dir = "dist"
+    root_dir        = "apps/web"
   }
 
-  # Cloudflare Pages auto-detects build tooling at the repo root and
-  # otherwise tries `pip install .` against the top-level pyproject.toml,
-  # which fails because the uv workspace root is not a setuptools project.
-  # `SKIP_DEPENDENCY_INSTALL` short-circuits that auto-install — `npm ci`
-  # in the build command is the only dependency step we need.
+  # Belt-and-suspenders: tell Pages to skip its dependency-install step
+  # entirely so we depend only on the explicit `npm ci` above.
   deployment_configs = {
     production = {
       env_vars = {

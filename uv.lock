@@ -173,7 +173,7 @@ dev = [
 [[package]]
 name = "basis-web"
 version = "0.1.0"
-source = { virtual = "apps/web" }
+source = { editable = "apps/web" }
 
 [[package]]
 name = "certifi"
