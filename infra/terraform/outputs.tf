@@ -14,7 +14,7 @@ output "cloudflare_zone_id" {
 
 output "r2_bucket_name" {
   description = "R2 bucket holding curated JSON artifacts and Parquet rollups."
-  value       = cloudflare_r2_bucket.artifacts.name
+  value       = cloudflare_r2_bucket.basis_artifacts.name
 }
 
 output "r2_endpoint_url" {
@@ -24,20 +24,20 @@ output "r2_endpoint_url" {
 
 output "d1_database_id" {
   description = "UUID of the D1 metadata database. Wire into wrangler.toml + Lambda env."
-  value       = cloudflare_d1_database.meta.id
+  value       = cloudflare_d1_database.basis_meta.id
 }
 
 output "d1_database_name" {
   description = "Name of the D1 metadata database."
-  value       = cloudflare_d1_database.meta.name
+  value       = cloudflare_d1_database.basis_meta.name
 }
 
 output "pages_project_name" {
   description = "Cloudflare Pages project name."
-  value       = cloudflare_pages_project.web.name
+  value       = cloudflare_pages_project.basis_web.name
 }
 
 output "pages_subdomain" {
   description = "Default <project>.pages.dev hostname assigned by Cloudflare."
-  value       = cloudflare_pages_project.web.subdomain
+  value       = cloudflare_pages_project.basis_web.subdomain
 }

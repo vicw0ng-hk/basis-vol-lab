@@ -20,7 +20,7 @@ locals {
 # rollups under `parquet/`. Public access is disabled — the SPA reads via
 # the Pages → API Gateway rewrite, never directly from r2.dev.
 
-resource "cloudflare_r2_bucket" "artifacts" {
+resource "cloudflare_r2_bucket" "basis_artifacts" {
   account_id    = local.account_id
   name          = "${var.project_name}-artifacts"
   location      = "apac"
@@ -29,9 +29,9 @@ resource "cloudflare_r2_bucket" "artifacts" {
 
 # Parquet rollups age out after 30 days; JSON artifacts are overwritten in
 # place by each snapshot run and never accumulate, so no rule for them.
-resource "cloudflare_r2_bucket_lifecycle" "artifacts" {
+resource "cloudflare_r2_bucket_lifecycle" "basis_artifacts" {
   account_id  = local.account_id
-  bucket_name = cloudflare_r2_bucket.artifacts.name
+  bucket_name = cloudflare_r2_bucket.basis_artifacts.name
 
   rules = [
     {
@@ -63,7 +63,7 @@ resource "cloudflare_r2_bucket_lifecycle" "artifacts" {
 # migrations are applied separately via `wrangler d1 migrations apply`
 # from `packages/persistence/migrations/` once that directory exists.
 
-resource "cloudflare_d1_database" "meta" {
+resource "cloudflare_d1_database" "basis_meta" {
   account_id            = local.account_id
   name                  = "${var.project_name}-meta"
   primary_location_hint = "apac"
@@ -80,7 +80,7 @@ resource "cloudflare_d1_database" "meta" {
 # `vicw0ng-hk` to Cloudflare Pages once via the dashboard — Terraform
 # cannot bootstrap that link.
 
-resource "cloudflare_pages_project" "web" {
+resource "cloudflare_pages_project" "basis_web" {
   account_id        = local.account_id
   name              = var.project_name
   production_branch = "master"
