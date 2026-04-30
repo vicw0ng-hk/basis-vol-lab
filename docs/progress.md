@@ -8,6 +8,7 @@
 - **Step 4** — Binance connector (REST instrument discovery + funding/basis/OI backfills + mark-price WebSocket stream). See [`docs/planning/5.step4-binance-connector.md`](planning/5.step4-binance-connector.md).
 - **Step 5** — Analytics package: Black-76 pricer + IV inversion (Brent) + analytic Greeks + realized-vol estimators + carry/funding helpers + smile/term-structure interpolation + the three headline signals + an IV-validation CLI. Live validation against Deribit shows p95 IV error < 0.005 vol points on liquid expiries (30D+). See [`docs/planning/6.step5-analytics.md`](planning/6.step5-analytics.md). Six-lecture markdown course under [`docs/analytics/`](analytics/README.md).
 - **Step 6 — MVP product shell** — snapshot orchestrator (`basis_api.snapshot`) wires connectors → `TimeSeriesStore` and emits curated JSON artifacts; FastAPI service (`basis_api.main`) serves the artifacts and exposes `POST /api/refresh`; Vite/React/Tailwind v4 SPA with light/dark toggle and four pages (Overview, Volatility, Carry, Signals); Dockerfiles for both apps and a `compose.yaml` that runs end-to-end on **OrbStack**. See [`docs/planning/7.step6-product-shell.md`](planning/7.step6-product-shell.md). **This closes the local MVP.**
+- **Step 7 (Phase A) — Terraform skeleton** — flat layout under [`infra/terraform/`](../infra/terraform/) (single HCP Terraform workspace `basis-vol-lab` in org `vsh852`, `cloudflare` + `aws` + `random` providers, AWS auth via OIDC dynamic credentials matching `~/dev/aws/bootstrap-oidc/`). `mise run tf:fmt` / `tf:validate` wired and `check` now depends on `tf:fmt`. New `.github/workflows/terraform.yml` runs `fmt -check` + `validate` on PRs touching `infra/terraform/**`. `terraform init -backend=false && terraform validate` passes locally. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 
 ## Abandoned
 
@@ -27,7 +28,14 @@
 
 ## Next
 
-→ **Step 7** — Cloud rollout: Cloudflare Pages for the static SPA, R2 for artifacts, D1 for metadata, AWS Lambda (container image) for `basis_api`, all provisioned via Terraform / HCP Terraform. Adds `mise run deploy`. Plan: [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
+→ **Step 7 — Phase B (Cloudflare resources)**: provision the R2 bucket
+(`basis-vol-lab-artifacts`, public access disabled, `parquet/**` lifecycle
+rule), the D1 database (`basis-vol-lab-meta`, schema migrated from the
+existing SQLite DDL via `wrangler d1 migrations`), and the Pages project
+(`basis-vol-lab`, build `cd apps/web && npm ci && npm run build`, output
+`apps/web/dist`, custom domain TBD, Pages Functions disabled, `_redirects`
+rewrite to API Gateway). Phase A skeleton is in place; Phase B fills in
+`infra/terraform/main.tf` + `outputs.tf`. Plan: [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 
 ## Notes
 

@@ -27,8 +27,19 @@ description = "Run tests with pytest"
 run = "uv run pytest"
 
 [tasks.check]
-description = "Run format, lint, typecheck, and test"
-depends = ["format", "lint", "typecheck", "test"]
+description = "Run format, lint, typecheck, test, and terraform fmt"
+depends = ["format", "lint", "typecheck", "test", "tf:fmt"]
+
+[tasks."tf:fmt"]
+description = "Format Terraform files under infra/terraform"
+run = "terraform -chdir=infra/terraform fmt -recursive"
+
+[tasks."tf:validate"]
+description = "Validate the Terraform skeleton (no backend init required)"
+run = """
+terraform -chdir=infra/terraform init -backend=false -input=false
+terraform -chdir=infra/terraform validate
+"""
 
 [tasks.collect]
 description = "Smoke-run the Deribit collector (BTC, prints a few tickers)"
