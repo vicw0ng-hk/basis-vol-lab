@@ -349,14 +349,18 @@ resource "cloudflare_dns_record" "basis_web" {
   comment = "Managed by Terraform — basis-vol-lab Pages custom domain"
 }
 
-# Cloudflare Web Analytics (free, no JS budget hit). `auto_install` lets
-# Cloudflare inject the beacon at the edge for zones it proxies, so the
-# Vite bundle stays untouched. The site token is exposed as an output for
-# manual verification in the dashboard.
-resource "cloudflare_web_analytics_site" "basis_web" {
-  account_id   = local.account_id
-  host         = local.custom_domain
-  auto_install = true
-
-  depends_on = [cloudflare_dns_record.basis_web]
+# Cloudflare Web Analytics is enabled at the zone (`vsh852.com`) level
+# and managed in `~/dev/cloudflare`, not here. The provider-level
+# `cloudflare_web_analytics_site` resource only accepts a root host that
+# matches an account-wide site, so a per-project resource keyed on
+# `basis.vsh852.com` fails to create. Auto-install at the zone level
+# already injects the beacon on every proxied subdomain, including
+# `basis.vsh852.com`, so we get the metric without owning a resource
+# here. The `removed` block below drops any partial state from the
+# original failed apply without attempting a destroy.
+removed {
+  from = cloudflare_web_analytics_site.basis_web
+  lifecycle {
+    destroy = false
+  }
 }

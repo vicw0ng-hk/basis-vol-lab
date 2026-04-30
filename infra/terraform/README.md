@@ -85,8 +85,12 @@ the Lambda env (Phase C) and the GitHub Actions secrets store
 - **Custom domain (`basis.vsh852.com`).** Wired in Phase F via
   `cloudflare_pages_domain` + a proxied `cloudflare_dns_record`
   CNAME to `basis-vol-lab.pages.dev`. Cloudflare Web Analytics is
-  enabled on the same host with `auto_install = true` so the beacon
-  is injected at the edge — no JS change to the Vite bundle.
+  managed at the zone (`vsh852.com`) level out of `~/dev/cloudflare`,
+  not here — the per-project `cloudflare_web_analytics_site`
+  resource only accepts a root host that matches an account-wide
+  site, so a subdomain-keyed resource fails to create. Zone-level
+  auto-install already injects the beacon on every proxied
+  subdomain.
 
 ## Local checks
 

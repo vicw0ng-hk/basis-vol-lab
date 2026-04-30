@@ -20,7 +20,12 @@ dependencies = [
 # R2 artifact backend and D1 metadata store are importable. Local dev
 # does not need either — `BASIS_ARTIFACT_BACKEND=local` is the default.
 cloud = [
-    "boto3>=1.35",
+    # boto3 ≥ 1.36 introduced the `request_checksum_calculation` /
+    # `response_checksum_validation` Config knobs we need to disable
+    # default integrity protections against Cloudflare R2 (which signs
+    # the new CRC32 checksum trailers differently than AWS S3 and would
+    # otherwise reject every PutObject with SignatureDoesNotMatch).
+    "boto3>=1.36",
     "basis-persistence[cloud]",
 ]
 

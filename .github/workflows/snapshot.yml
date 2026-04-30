@@ -5,6 +5,14 @@ name: snapshot
 # stays fresh without a human pressing **Refresh**. Live freshness still
 # comes from `POST /api/refresh` against the Lambda — GitHub Actions cron
 # is best-effort (≥ 5 min cadence, may slip at the top of the hour).
+#
+# Known degradation: GitHub-hosted runners are US-based and Binance
+# Futures returns HTTP 451 (geo-block) for `/fapi/*` and
+# `/futures/data/*` from those IPs. `_safe_pull` swallows these so the
+# Deribit half of the snapshot still lands; the Binance carry / basis /
+# OI panels will be empty until either the next `POST /api/refresh`
+# from the (HK-hosted) Lambda or a self-hosted runner is added. This
+# is acceptable best-effort behaviour — not a failure.
 
 on:
   schedule:

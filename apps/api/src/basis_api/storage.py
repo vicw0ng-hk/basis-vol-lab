@@ -164,8 +164,21 @@ class R2ArtifactStore:
             aws_access_key_id=access_key,
             aws_secret_access_key=secret,
             region_name=region,
-            # R2 wants SigV4 + path-style addressing.
-            config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+            # R2 quirks:
+            #   • SigV4 + path-style addressing (R2 docs).
+            #   • Disable boto3 ≥ 1.36 "default integrity protections" —
+            #     they add `x-amz-checksum-crc32` + STREAMING-…-TRAILER
+            #     content-encoding to every PutObject, which R2 signs
+            #     differently than AWS S3 and rejects with
+            #     `SignatureDoesNotMatch`. See boto3#4392. Setting both
+            #     checksum knobs to `when_required` restores the legacy
+            #     signing path.
+            config=Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "path"},
+                request_checksum_calculation="when_required",
+                response_checksum_validation="when_required",
+            ),
         )
 
     def _full_key(self, suffix: str) -> str:

@@ -65,8 +65,3 @@ output "web_url" {
   description = "Public URL for the deployed dashboard (Cloudflare Pages, custom domain)."
   value       = "https://${cloudflare_pages_domain.basis_web.name}"
 }
-
-output "web_analytics_site_tag" {
-  description = "Cloudflare Web Analytics site tag for the Pages site."
-  value       = cloudflare_web_analytics_site.basis_web.site_tag
-}

@@ -5,12 +5,16 @@ and Binance USD-margined futures/perpetuals, computes IV, skew, basis,
 funding, and open-interest metrics, and surfaces three headline signals
 designed to make a current market regime legible at a glance.
 
-> **Status**: MVP **shipped locally** as of step 6 — snapshot orchestrator,
-> FastAPI service, and Vite/React/Tailwind dashboard with light/dark toggle,
-> all wired into a Docker Compose stack that runs on OrbStack or Docker
-> Desktop. Tracked in [`docs/progress.md`](docs/progress.md). The
-> implementation plan lives in [`docs/planning/`](docs/planning/), starting
-> with [`1.initial-plan.md`](docs/planning/1.initial-plan.md).
+> **Live demo**: <https://basis.vsh852.com>
+>
+> **Status**: deployed. Cloudflare Pages serves the SPA; AWS Lambda + API
+> Gateway serve `POST /api/refresh` and the curated read endpoints; R2
+> stores artifacts; D1 holds metadata. Provisioned end-to-end with
+> Terraform via HCP Terraform, with a `*/15 * * * *` GitHub Actions cron
+> as a best-effort snapshot backstop. Tracked in
+> [`docs/progress.md`](docs/progress.md). Implementation plan lives in
+> [`docs/planning/`](docs/planning/), starting with
+> [`1.initial-plan.md`](docs/planning/1.initial-plan.md).
 
 ## What it does
 
@@ -181,15 +185,48 @@ data/                          # gitignored
 
 ## Cloud target
 
-| Component        | Target                          | Why                                        |
-| ---------------- | ------------------------------- | ------------------------------------------ |
-| Static front end | Cloudflare Pages                | Free unlimited static requests             |
-| Time-series      | Cloudflare R2                   | No egress fees, S3-compatible              |
-| Metadata         | Cloudflare D1                   | SQLite-compatible, sufficient for run logs |
-| Analytics        | AWS Lambda (container images)   | Free tier, easy SciPy packaging            |
-| IaC              | Terraform via HCP Terraform     | Free remote state + VCS-driven runs        |
+The deployment is live at <https://basis.vsh852.com>.
 
-Cost rule: **everything stays inside free tiers**.
+| Component        | Service                              | Notes                                                       |
+| ---------------- | ------------------------------------ | ----------------------------------------------------------- |
+| Static front end | Cloudflare Pages (custom domain)     | Free unlimited static requests; zone-level Web Analytics    |
+| Time-series      | Cloudflare R2                        | No egress fees, S3-compatible, 30-day Parquet lifecycle     |
+| Metadata         | Cloudflare D1                        | SQLite-compatible; instruments + collection runs            |
+| Analytics / API  | AWS Lambda (arm64 container) + APIGW | `POST /api/refresh`, curated read endpoints                 |
+| IaC              | Terraform via HCP Terraform          | VCS-driven runs from `master` filtered to `infra/terraform` |
+| Snapshot cron    | GitHub Actions (`*/15 * * * *`)      | Best-effort; live freshness comes from `POST /api/refresh`  |
+| Uptime canary    | GitHub Actions (`17 * * * *`)        | Probes the SPA + `/healthz`; failure emails the repo owner  |
+
+```
+                       ┌──────────────────────────┐
+   Browser ──▶           │  Cloudflare Pages          │  https://basis.vsh852.com
+                       │  apps/web/dist             │  (static SPA, free unlimited)
+                       └─────────┬────────────────┘
+                                 │ fetch /api/* (CORS, cross-origin)
+                                 ▼
+                       ┌──────────────────────────┐
+                       │  AWS API Gateway HTTP      │
+                       │  + Lambda (container)      │  basis_api / Mangum / arm64
+                       └────┬──────────┬──────────┘
+                            │ read+write│ read+write
+                            ▼           ▼
+                       ┌────────┐  ┌────────────┐
+                       │   R2   │  │     D1     │
+                       │ JSON + │  │  metadata  │
+                       │ parquet│  │  + runs    │
+                       └────────┘  └────────────┘
+                            ▲
+                            │ snapshot writes
+                       ┌──────────────────────────┐
+                       │ GitHub Actions cron        │  best-effort, every 15 min
+                       │ uv run snapshot → R2       │
+                       └──────────────────────────┘
+```
+
+Cost rule: **everything stays inside free tiers** (R2 storage stays well
+under 10 GB-month; D1 well under 100 k row writes/day; Lambda well under
+400 k GB-s; Pages and GitHub Actions are free for public repos). The
+AWS billing dashboard reads `$0.00`.
 
 ## Known limitations
 
