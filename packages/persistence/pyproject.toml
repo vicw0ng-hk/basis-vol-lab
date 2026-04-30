@@ -5,6 +5,7 @@ description = "SQLite/D1 metadata and Parquet/R2 time-series storage"
 requires-python = ">=3.14"
 dependencies = [
     "basis-contracts",
+    "pyarrow>=20.0",
 ]
 
 [tool.uv.sources]

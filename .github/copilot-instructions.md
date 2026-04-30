@@ -81,11 +81,14 @@ uvx pyright
 
 Always run in this order:
 
-1. `uv run ruff format .`
-2. `uv run ruff check . --fix`
-3. `uv run pytest`
+1. `uvx ruff format .`
+2. `uvx ruff check . --fix`
+3. `uvx pyright`
+4. `uv run pytest`
 
-Confirm all three pass before considering a task complete.
+Or equivalently: `mise run check`
+
+Confirm all four pass before considering a task complete.
 
 ---
 
@@ -111,9 +114,18 @@ Confirm all three pass before considering a task complete.
 
 | Layer | Local | Cloud |
 |-------|-------|-------|
-| Metadata | SQLite | Cloudflare D1 |
-| Time-series | Parquet files | Cloudflare R2 |
+| Metadata | SQLite (`MetadataStore`) | Cloudflare D1 |
+| Time-series | Parquet files (`TimeSeriesStore`) | Cloudflare R2 |
 | Ad-hoc queries | DuckDB over Parquet | DuckDB over S3/R2 |
+
+### Persistence package (`packages/persistence`)
+
+- **`MetadataStore`** — SQLite wrapper for `instruments` and `collection_runs` tables. Timestamps as ISO-8601 TEXT (D1 compatible). Uses `ON CONFLICT ... DO UPDATE` for upserts.
+- **`TimeSeriesStore`** — Parquet writer/reader for `TickerSnapshot`. Files partitioned as `{base_dir}/{venue}/{YYYY-MM-DD}/tickers.parquet`. Appends to existing files.
+- **`TICKER_SCHEMA`** — PyArrow schema with microsecond UTC timestamps.
+- Local data lives in `data/` (gitignored).
+
+### Storage rules
 
 - Store 5–15 min summary metrics continuously; full-chain snapshots hourly/daily.
 - Keep D1 writes under 100k rows/day and reads under 5M rows/day (free tier).
@@ -179,3 +191,12 @@ Confirm all three pass before considering a task complete.
 6. 🔒 Test suite (never cut)
 7. 🔒 Deployed demo (never cut)
 8. 🔒 Benchmark notes (never cut)
+
+---
+
+## Session Hygiene
+
+- At the end of each working session, review whether this instructions file needs updating (new packages, changed conventions, new tools, etc.) and update it if so. 
+- Update `docs/progress.md` for what steps have been done and what step is next.
+- For any task in the initial plan that we decide not to do or to do in a different way, update `docs/planning/1.initial-plan.md` and `docs/planning/` step files to reflect what was actually done.
+- For any task that was deferred, make sure it's clearly marked as deferred in `docs/progress.md`.
