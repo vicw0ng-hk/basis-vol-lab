@@ -82,8 +82,11 @@ the Lambda env (Phase C) and the GitHub Actions secrets store
   from running `pip install .` against the workspace root (which fails
   because it is not a setuptools project). `npm ci` inside the build
   command is the only dependency step we need.
-- **Custom domain (`basis.vsh852.com`).** Wired in Phase F together
-  with the API Gateway DNS record.
+- **Custom domain (`basis.vsh852.com`).** Wired in Phase F via
+  `cloudflare_pages_domain` + a proxied `cloudflare_dns_record`
+  CNAME to `basis-vol-lab.pages.dev`. Cloudflare Web Analytics is
+  enabled on the same host with `auto_install = true` so the beacon
+  is injected at the edge — no JS change to the Vite bundle.
 
 ## Local checks
 

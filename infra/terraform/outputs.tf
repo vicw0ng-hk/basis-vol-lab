@@ -58,3 +58,15 @@ output "api_endpoint" {
   description = "API Gateway HTTP API invoke URL (null until var.lambda_image_pushed = true)."
   value       = try(aws_apigatewayv2_api.basis_api[0].api_endpoint, null)
 }
+
+# ── Phase F — custom domain + observability ─────────────────────────────
+
+output "web_url" {
+  description = "Public URL for the deployed dashboard (Cloudflare Pages, custom domain)."
+  value       = "https://${cloudflare_pages_domain.basis_web.name}"
+}
+
+output "web_analytics_site_tag" {
+  description = "Cloudflare Web Analytics site tag for the Pages site."
+  value       = cloudflare_web_analytics_site.basis_web.site_tag
+}

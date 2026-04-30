@@ -13,12 +13,19 @@ locals {
   account_id = data.cloudflare_zone.this.account.id
   zone_id    = data.cloudflare_zone.this.id
 
+  # Public hostnames the SPA may be served from. Both end up in the
+  # Lambda CORS allowlist and the latter is the canonical origin once
+  # the custom domain is wired in Phase F.
+  #
   # Cloudflare Pages assigns `<project>.pages.dev` deterministically. We
-  # depend on this string in CORS + Lambda env *without* taking a graph
-  # edge on the Pages resource, because Pages itself depends on the API
-  # Gateway URL (baked into the SPA at build time as VITE_API_URL) and
-  # we'd otherwise get a cycle.
-  pages_origin = "https://${var.project_name}.pages.dev"
+  # depend on these strings in CORS + Lambda env *without* taking a
+  # graph edge on the Pages resource, because Pages itself depends on
+  # the API Gateway URL (baked into the SPA at build time as
+  # VITE_API_URL) and we'd otherwise get a cycle.
+  pages_origin  = "https://${var.project_name}.pages.dev"
+  custom_domain = "${var.subdomain}.${var.domain}"
+  custom_origin = "https://${local.custom_domain}"
+  web_origins   = [local.custom_origin, local.pages_origin]
 }
 
 # ── R2 artifact bucket ──────────────────────────────────────────────────
@@ -251,7 +258,7 @@ resource "aws_lambda_function" "api" {
   environment {
     variables = {
       BASIS_DATA_DIR             = "/tmp/data"
-      BASIS_CORS_ORIGINS         = local.pages_origin
+      BASIS_CORS_ORIGINS         = join(",", local.web_origins)
       BASIS_ARTIFACT_BACKEND     = var.r2_access_key_id != "" ? "r2" : "local"
       BASIS_R2_ENDPOINT          = "https://${local.account_id}.r2.cloudflarestorage.com"
       BASIS_R2_BUCKET            = cloudflare_r2_bucket.basis_artifacts.name
@@ -277,7 +284,7 @@ resource "aws_apigatewayv2_api" "basis_api" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = [local.pages_origin]
+    allow_origins = local.web_origins
     allow_methods = ["GET", "POST", "OPTIONS"]
     allow_headers = ["content-type"]
     max_age       = 3600
@@ -317,4 +324,39 @@ resource "aws_lambda_permission" "apigw" {
   function_name = aws_lambda_function.api[0].function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.basis_api[0].execution_arn}/*/*"
+}
+
+# ── Phase F — custom domain, DNS, Web Analytics ────────────────────────
+#
+# `basis.vsh852.com` fronts the Pages project. The CNAME is proxied so
+# Cloudflare terminates TLS, serves the static bundle from its CDN, and
+# (with auto-install) injects the Web Analytics beacon. The pages.dev
+# hostname stays valid as a backup origin and for previews.
+
+resource "cloudflare_pages_domain" "basis_web" {
+  account_id   = local.account_id
+  project_name = cloudflare_pages_project.basis_web.name
+  name         = local.custom_domain
+}
+
+resource "cloudflare_dns_record" "basis_web" {
+  zone_id = local.zone_id
+  name    = local.custom_domain
+  type    = "CNAME"
+  content = "${cloudflare_pages_project.basis_web.name}.pages.dev"
+  ttl     = 1 # "automatic" — required when proxied = true
+  proxied = true
+  comment = "Managed by Terraform — basis-vol-lab Pages custom domain"
+}
+
+# Cloudflare Web Analytics (free, no JS budget hit). `auto_install` lets
+# Cloudflare inject the beacon at the edge for zones it proxies, so the
+# Vite bundle stays untouched. The site token is exposed as an output for
+# manual verification in the dashboard.
+resource "cloudflare_web_analytics_site" "basis_web" {
+  account_id   = local.account_id
+  host         = local.custom_domain
+  auto_install = true
+
+  depends_on = [cloudflare_dns_record.basis_web]
 }
