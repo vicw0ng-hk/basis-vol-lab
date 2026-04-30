@@ -7,14 +7,14 @@ Cloudflare Pages + R2 + D1 and AWS Lambda + API Gateway. Plan lives in
 Phase A wired the skeleton (providers, HCP Terraform backend, zone
 lookup). Phase B adds the Cloudflare resources:
 
-- `cloudflare_r2_bucket.artifacts` — `basis-vol-lab-artifacts`, `apac`,
+- `cloudflare_r2_bucket.basis_artifacts` — `basis-vol-lab-artifacts`, `apac`,
   `Standard` storage class, public access disabled.
-- `cloudflare_r2_bucket_lifecycle.artifacts` — single rule that deletes
+- `cloudflare_r2_bucket_lifecycle.basis_artifacts` — single rule that deletes
   objects under `parquet/` after 30 days and aborts dangling multipart
   uploads after 24 h.
-- `cloudflare_d1_database.meta` — `basis-vol-lab-meta`, primary location
+- `cloudflare_d1_database.basis_meta` — `basis-vol-lab-meta`, primary location
   hint `apac`. Schema is migrated separately (see "Open follow-ups").
-- `cloudflare_pages_project.web` — `basis-vol-lab` Pages project, GitHub
+- `cloudflare_pages_project.basis_web` — `basis-vol-lab` Pages project, GitHub
   source `vicw0ng-hk/basis-vol-lab`, production branch `master`, build
   command `cd apps/web && npm ci && npm run build`, output
   `apps/web/dist`. Pages Functions are not configured — dynamic traffic
@@ -75,7 +75,7 @@ the Lambda env (Phase C) and the GitHub Actions secrets store
   `MetadataStore` is still TODO; it will be applied via
   `wrangler d1 migrations apply ${var.project_name}-meta` once the
   `D1MetadataStore` sibling lands in Phase D.
-- **Pages → GitHub link.** The `cloudflare_pages_project.web` resource
+- **Pages → GitHub link.** The `cloudflare_pages_project.basis_web` resource
   assumes the Cloudflare account already has the
   `vicw0ng-hk/basis-vol-lab` GitHub installation authorised for Pages.
   This must be done once via the dashboard before `terraform apply`.
