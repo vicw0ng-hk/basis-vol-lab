@@ -1,24 +1,19 @@
 variable "cloudflare_api_token" {
   type        = string
-  description = "Cloudflare API token. Scopes: Pages:Edit, R2:Edit, D1:Edit, Workers:Edit, Zone:DNS:Edit on the demo zone."
+  description = "Cloudflare API token. Scopes: Pages:Edit, R2:Edit, D1:Edit, Workers:Edit, Zone:DNS:Edit on the vsh852.com zone."
   sensitive   = true
-}
-
-variable "cloudflare_account_id" {
-  type        = string
-  description = "Cloudflare account ID owning the Pages project, R2 bucket, and D1 database."
-}
-
-variable "cloudflare_zone_id" {
-  type        = string
-  description = "Cloudflare DNS zone ID used for the public custom domain."
-  default     = ""
 }
 
 variable "domain" {
   type        = string
-  description = "Public custom domain for the Pages site (e.g. basis.example.dev). Empty means use the generated *.pages.dev URL."
-  default     = ""
+  description = "Public custom domain for the Pages site. Lookup key for the cloudflare_zone data source."
+  default     = "vsh852.com"
+}
+
+variable "subdomain" {
+  type        = string
+  description = "Subdomain hosting the deployed demo (e.g. basis.vsh852.com)."
+  default     = "basis"
 }
 
 variable "aws_region" {

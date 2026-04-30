@@ -35,13 +35,14 @@ Owner of the AWS / Cloudflare accounts performs these manually:
    - `TFC_AWS_RUN_ROLE_ARN=<arn from bootstrap-oidc>`
 
 3. **Cloudflare auth — API token**. Create a token scoped to
-   Pages:Edit, R2:Edit, D1:Edit, Workers:Edit, Zone:DNS:Edit on the demo
-   zone, then set workspace **terraform** variables:
+   Pages:Edit, R2:Edit, D1:Edit, Workers:Edit, Zone:DNS:Edit on
+   `vsh852.com`, then set the workspace **terraform** variable:
 
    - `cloudflare_api_token` (sensitive)
-   - `cloudflare_account_id`
-   - `cloudflare_zone_id` (only once a custom domain is chosen)
-   - `domain` (only once a custom domain is chosen)
+
+   Account and zone IDs are discovered at plan time via a
+   `data "cloudflare_zone"` block keyed on `var.domain` (default
+   `vsh852.com`) — no need to copy them into TFC.
 
 R2 S3-compatible access keys (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`)
 are consumed by the Lambda runtime and GitHub Actions, **not** by
