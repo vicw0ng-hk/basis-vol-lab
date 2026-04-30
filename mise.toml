@@ -153,3 +153,22 @@ aws lambda update-function-code \\
     --region "$BASIS_AWS_REGION" >/dev/null
 echo "lambda updated: $BASIS_LAMBDA_FN"
 """
+
+# ── Cloudflare D1 schema migrations ────────────────────────────────────
+#
+# `D1MetadataStore` (Python) talks to the D1 REST API at runtime, but
+# schema changes go through wrangler so D1's own migration table stays
+# in sync. Both tasks need `CLOUDFLARE_API_TOKEN` exported with at
+# least the `D1:Edit` scope on the project account. The wrangler.toml
+# lives at `packages/persistence/wrangler.toml` and pins the production
+# database UUID surfaced by `terraform output d1_database_id`.
+
+[tasks."d1:migrate"]
+description = "Apply pending D1 schema migrations to basis-vol-lab-meta"
+dir = "packages/persistence"
+run = "wrangler d1 migrations apply basis-vol-lab-meta --remote"
+
+[tasks."d1:migrate:list"]
+description = "List applied + pending D1 migrations"
+dir = "packages/persistence"
+run = "wrangler d1 migrations list basis-vol-lab-meta --remote"
