@@ -1,9 +1,45 @@
 [project]
 name = "basis-vol-lab"
 version = "0.1.0"
-description = "Add your description here"
+description = "Cross-venue crypto-derivatives regime monitor"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "pytest>=9.0.3",
+    "basis-contracts",
+    "basis-connectors",
+    "basis-analytics",
+    "basis-persistence",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pre-commit>=4.2",
+]
+
+[tool.uv.workspace]
+members = [
+    "packages/*",
+    "apps/*",
+]
+
+[tool.uv.sources]
+basis-contracts = { workspace = true }
+basis-connectors = { workspace = true }
+basis-analytics = { workspace = true }
+basis-persistence = { workspace = true }
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "N"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.14"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

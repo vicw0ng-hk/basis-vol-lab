@@ -1,0 +1,6 @@
+[project]
+name = "basis-web"
+version = "0.1.0"
+description = "Static front end (Cloudflare Pages)"
+requires-python = ">=3.14"
+dependencies = []

@@ -1,0 +1,13 @@
+[project]
+name = "basis-api"
+version = "0.1.0"
+description = "Thin dynamic endpoints (AWS Lambda)"
+requires-python = ">=3.14"
+dependencies = [
+    "basis-analytics",
+    "basis-persistence",
+]
+
+[tool.uv.sources]
+basis-analytics = { workspace = true }
+basis-persistence = { workspace = true }

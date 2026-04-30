@@ -1,0 +1,1 @@
+"""Thin dynamic API endpoints."""

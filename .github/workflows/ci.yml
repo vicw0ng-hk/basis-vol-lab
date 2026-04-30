@@ -8,7 +8,7 @@ on:
 
 jobs:
   lint:
-    name: ruff-and-pyright
+    name: lint-and-typecheck
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,10 +16,18 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.14"
+
+      - name: Check formatting
+        run: uvx ruff format --check .
 
       - name: Run ruff
         run: uvx ruff check .
-      
+
+      - name: Install workspace
+        run: uv sync
+
       - name: Run pyright
         run: uvx pyright
 
@@ -30,7 +38,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install uv (Python 3.14)
+      - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           python-version: "3.14"

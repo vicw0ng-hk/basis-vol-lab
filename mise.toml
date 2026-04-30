@@ -9,3 +9,23 @@ wrangler = "latest"
 
 [settings]
 python.uv_venv_auto = "create|source"
+
+[tasks.format]
+description = "Format code with ruff"
+run = "uvx ruff format ."
+
+[tasks.lint]
+description = "Lint code with ruff"
+run = "uvx ruff check . --fix"
+
+[tasks.typecheck]
+description = "Type-check with pyright"
+run = "uvx pyright"
+
+[tasks.test]
+description = "Run tests with pytest"
+run = "uv run pytest"
+
+[tasks.check]
+description = "Run format, lint, typecheck, and test"
+depends = ["format", "lint", "typecheck", "test"]

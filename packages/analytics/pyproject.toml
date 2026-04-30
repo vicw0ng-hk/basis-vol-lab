@@ -1,0 +1,11 @@
+[project]
+name = "basis-analytics"
+version = "0.1.0"
+description = "Pandas/NumPy/SciPy analytics and signal computation"
+requires-python = ">=3.14"
+dependencies = [
+    "basis-contracts",
+]
+
+[tool.uv.sources]
+basis-contracts = { workspace = true }
