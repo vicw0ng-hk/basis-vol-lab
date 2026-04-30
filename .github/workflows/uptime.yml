@@ -1,14 +1,7 @@
 name: uptime
 
-# Best-effort uptime ping for the public deployment. Hits the SPA and
-# the API `/healthz` endpoint hourly; the workflow goes red (and emails
-# the repo owner) if either fails. Cheap observability — no third-party
-# monitor required.
-
 on:
   schedule:
-    # Hourly. GitHub Actions cron is best-effort and may slip; that's
-    # fine for an uptime canary on a free-tier demo.
     - cron: "17 * * * *"
   workflow_dispatch:
 

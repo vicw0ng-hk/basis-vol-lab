@@ -1,18 +1,4 @@
-"""Volatility surface helpers: ATM term-structure and smile interpolation.
-
-Step 5 keeps the surface tooling deliberately thin:
-
-    * `atm_term_structure` — picks the option closest to the forward at
-      each expiry and returns its IV, giving the time axis of the
-      surface.
-    * `smile_interp` — wraps a `scipy.interpolate.PchipInterpolator`
-      around the strike-IV pairs of a single expiry, producing a smooth
-      smile with no spurious oscillation (PCHIP is monotone-preserving).
-
-We deliberately do **not** ship a full SVI/SABR fit here; the dashboard
-needs reliable nodes and percentile histories more than parametric
-surfaces. SVI can come later as a follow-on signal.
-"""
+"""Volatility surface helpers for ATM term structure and smile interpolation."""
 
 from __future__ import annotations
 

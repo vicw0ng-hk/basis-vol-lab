@@ -1,6 +1,4 @@
-// Loads lecture markdown from `docs/analytics/` at build time as raw strings.
-// Each filename like `01-options-and-forward-pricing.md` becomes a slug
-// `01-options-and-forward-pricing`.
+// Build-time markdown bundle for the Learn page.
 
 const modules = import.meta.glob('../../../../docs/analytics/*.md', {
   query: '?raw',
@@ -11,7 +9,7 @@ const modules = import.meta.glob('../../../../docs/analytics/*.md', {
 export interface Lecture {
   slug: string;
   filename: string;
-  number: number | null; // null for README
+  number: number | null;
   title: string;
   source: string;
 }
@@ -19,7 +17,6 @@ export interface Lecture {
 function deriveTitle(source: string, fallback: string): string {
   const match = source.match(/^#\s+(.+)$/m);
   if (!match) return fallback;
-  // Strip "Lecture N — " prefix for nicer sidebar labels.
   return match[1].replace(/^Lecture\s+\d+\s*[—-]\s*/, '').trim();
 }
 
@@ -41,7 +38,6 @@ function buildLecture(path: string, source: string): Lecture {
 export const LECTURES: Lecture[] = Object.entries(modules)
   .map(([path, source]) => buildLecture(path, source))
   .sort((a, b) => {
-    // README first, then numbered lectures in order.
     if (a.slug === 'README') return -1;
     if (b.slug === 'README') return 1;
     return (a.number ?? 0) - (b.number ?? 0);

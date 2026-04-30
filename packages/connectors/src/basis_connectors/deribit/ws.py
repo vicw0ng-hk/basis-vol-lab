@@ -1,12 +1,4 @@
-"""Async WebSocket client for Deribit public ticker streams.
-
-Implements the operational basics required for an MVP collector:
-
-* JSON-RPC subscribe over ``wss://www.deribit.com/ws/api/v2``.
-* Heartbeat (``public/set_heartbeat``) with replies to ``test_request``.
-* Reconnect with exponential backoff on disconnect, replaying the live
-  subscription set.
-"""
+"""Async WebSocket client for Deribit public ticker streams."""
 
 from __future__ import annotations
 
@@ -28,7 +20,6 @@ DEFAULT_WS_URL = "wss://www.deribit.com/ws/api/v2"
 
 _LOG = logging.getLogger(__name__)
 
-# Sentinel pushed into the queue to signal end-of-stream.
 _DONE: object = object()
 
 

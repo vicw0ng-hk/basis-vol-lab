@@ -1,18 +1,4 @@
-"""Async WebSocket client for Binance futures `markPrice@arr` streams.
-
-Yields parsed `TickerSnapshot`s for BTC/ETH USDT perps and quarterly futures.
-
-Operational notes:
-
-* Binance closes individual connections after 24h; we reconnect with
-  exponential backoff and resume the same combined stream.
-* The `websockets` library handles control-frame ping/pong automatically; no
-  custom keepalive is required.
-* Since the 2026-04-23 base-URL migration, regular market data streams
-  (markPrice, aggTrade, kline, ticker, etc.) live under the ``/market``
-  path. Subscribing to them on the legacy ``/stream`` or ``/ws`` paths
-  silently delivers no frames. See ``docs/planning/5.step4-binance-connector.md``.
-"""
+"""Async WebSocket client for Binance futures mark-price streams."""
 
 from __future__ import annotations
 

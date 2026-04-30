@@ -44,11 +44,11 @@ terraform -chdir=infra/terraform validate
 """
 
 [tasks.deploy]
-description = "Reminder: infra deploys are VCS-driven via HCP Terraform; push to master and approve in the TFC UI."
+description = "Show the HCP Terraform deployment link"
 run = """
 echo "Infra is deployed by HCP Terraform on push to master."
-echo "  • Plans:  https://app.terraform.io/app/vsh852/workspaces/basis-vol-lab/runs"
-echo "  • Approve there; do not run \\`terraform apply\\` locally."
+echo "Plans: https://app.terraform.io/app/vsh852/workspaces/basis-vol-lab/runs"
+echo "Approve there; do not run terraform apply locally."
 """
 
 [tasks.collect]
@@ -94,26 +94,7 @@ run = "docker compose up --build"
 description = "Stop the Docker Compose stack"
 run = "docker compose down"
 
-# ── AWS Lambda image lifecycle ─────────────────────────────────────────
-#
-# Infra is provisioned by HCP Terraform on push to master (VCS-driven
-# workspace). The Phase C bootstrap is a two-step dance because
-# `aws_lambda_function` cannot be created until an image already exists
-# in ECR:
-#
-#   1. Merge the Phase C TF change with `var.lambda_image_pushed = false`
-#      (the default). TFC creates ECR + IAM + log group only.
-#   2. `mise run lambda:push` — build + push the first image to ECR.
-#   3. Set the workspace variable `lambda_image_pushed = true` in the
-#      HCP Terraform UI and queue a new plan. TFC creates the Lambda,
-#      the API Gateway, and updates the Pages `VITE_API_URL` env var.
-#
-# Subsequent code-only deploys are just `mise run lambda:push && mise
-# run lambda:update`. Terraform's `lifecycle.ignore_changes = [image_uri]`
-# keeps it from fighting `update-function-code`.
-#
-# All three tasks need local AWS credentials (`aws sso login` or
-# equivalent) and Docker buildx — TFC is *not* in the loop.
+# Lambda image tasks need local AWS credentials and Docker buildx.
 
 [tasks."lambda:build"]
 description = "Build the Lambda container image (arm64) for apps/api"
@@ -153,13 +134,7 @@ aws lambda update-function-code \\
 echo "lambda updated: $BASIS_LAMBDA_FN"
 """
 
-# ── Cloudflare D1 schema migrations ────────────────────────────────────
-#
-# `D1MetadataStore` (Python) talks to the D1 REST API at runtime; schema
-# DDL is idempotent (`CREATE TABLE IF NOT EXISTS`), so we apply it via
-# the same REST endpoint instead of pulling in `wrangler` + a
-# `wrangler.toml`. Needs `CLOUDFLARE_API_TOKEN` exported with the
-# `D1:Edit` scope; account + database IDs come from `terraform output`.
+# D1 migrations use the Cloudflare REST API; export CLOUDFLARE_API_TOKEN.
 
 [tasks."d1:migrate"]
 description = "Apply packages/persistence/migrations/*.sql to the production D1 database"

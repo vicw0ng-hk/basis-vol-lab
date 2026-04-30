@@ -1,19 +1,4 @@
-"""Snapshot orchestration: pull live data, persist, emit curated JSON.
-
-This is the engine of the MVP product shell. One call to
-:func:`run_snapshot` does the following:
-
-1. Pull a single Deribit options + futures book summary (live REST).
-2. Pull a single Binance funding-rate + basis + open-interest backfill.
-3. Persist the union of ticker snapshots through `TimeSeriesStore`.
-4. Compute curated artifacts (overview, vol, carry, signals) and write
-   them as JSON under ``data/artifacts/``.
-
-The script is deliberately self-contained and synchronous-feeling at the
-top level (``asyncio.run``) so it can be invoked equally well from the
-CLI (``python -m basis_api.snapshot``), from a FastAPI endpoint
-(``POST /api/refresh``), or from a Lambda handler.
-"""
+"""Pull live data, persist snapshots, and emit dashboard JSON."""
 
 from __future__ import annotations
 
@@ -61,11 +46,6 @@ class SnapshotResult:
     store_repr: str
     artifact_names: list[str]
     parquet_keys: list[str]
-
-
-# ---------------------------------------------------------------------------
-# Deribit pull (REST book-summary; same shape as basis_analytics.validate)
-# ---------------------------------------------------------------------------
 
 
 async def _deribit_book_summary(
@@ -141,11 +121,6 @@ async def _pull_deribit(
     return options, futures
 
 
-# ---------------------------------------------------------------------------
-# Binance pull (REST: funding + basis + OI)
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True, slots=True)
 class _BinanceData:
     funding: dict[str, list[dict[str, Any]]]  # symbol -> rows
@@ -162,9 +137,7 @@ async def _pull_binance(symbols: Iterable[str]) -> _BinanceData:
         for sym in symbols:
             pair = sym  # USDT-M: pair == symbol.
 
-            # Each pull is wrapped: Binance rate-limit responses (HTTP 418
-            # / -1003) on /futures/data/* should not abort the whole
-            # snapshot. Missing series degrade gracefully in the UI.
+            # Keep partial snapshots usable when Binance rate-limits one series.
             funding[sym] = await _safe_pull(
                 _pull_funding(client, sym),
                 f"funding/{sym}",
@@ -226,11 +199,6 @@ async def _safe_pull(coro: Any, label: str) -> list[dict[str, Any]]:
     except Exception as exc:  # noqa: BLE001 - degrade gracefully on any pull failure
         print(f"[snapshot] warn: {label} failed: {exc}")  # noqa: T201
         return []
-
-
-# ---------------------------------------------------------------------------
-# Curated artifact builders
-# ---------------------------------------------------------------------------
 
 
 def _build_overview(
@@ -443,14 +411,7 @@ def _build_carry(
 
 
 def _build_signals(carry: dict[str, Any]) -> dict[str, Any]:
-    """Compute current snapshot of the three headline signals.
-
-    Without a long history we cannot compute true rolling percentile
-    ranks, so the snapshot mode reports the *raw* inputs and a simple
-    z-score-style normalization where possible. This is a known MVP
-    limitation; the full percentile ranks light up once the snapshot
-    has been running for a few weeks.
-    """
+    """Compute the current snapshot-level headline signals."""
     cards = carry.get("cards", {})
     summary: list[dict[str, Any]] = []
     for sym, card in cards.items():
@@ -476,9 +437,8 @@ def _build_signals(carry: dict[str, Any]) -> dict[str, Any]:
     return {
         "as_of_snapshot": True,
         "note": (
-            "MVP snapshot mode: full rolling-percentile signals unlock once "
-            "the historical snapshot store has accumulated several weeks of "
-            "data."
+            "Rolling-percentile signals appear once the historical snapshot "
+            "store has enough observations."
         ),
         "summary": summary,
     }
@@ -490,11 +450,6 @@ def _safe_diff(a: float | None, b: float | None) -> float | None:
     if math.isnan(a) or math.isnan(b):
         return None
     return float(a - b)
-
-
-# ---------------------------------------------------------------------------
-# Top-level orchestration
-# ---------------------------------------------------------------------------
 
 
 _ARTIFACT_NAMES = (
@@ -511,7 +466,6 @@ async def _run_snapshot_async(
 ) -> SnapshotResult:
     asof = datetime.now(tz=UTC)
 
-    # 1) Live pulls in parallel.
     btc_task = asyncio.create_task(_pull_deribit("BTC", asof))
     eth_task = asyncio.create_task(_pull_deribit("ETH", asof))
     binance_task = asyncio.create_task(_pull_binance(["BTCUSDT", "ETHUSDT"]))
@@ -522,8 +476,6 @@ async def _run_snapshot_async(
     deribit_options = btc_opts + eth_opts
     deribit_futures = btc_futs + eth_futs
 
-    # 2) Persist tickers via TimeSeriesStore (Parquet on local scratch),
-    #    then upload bytes to the artifact store under "parquet/...".
     ts_store = TimeSeriesStore(scratch_dir)
     parquet_paths = ts_store.write_snapshots(deribit_options + deribit_futures)
     parquet_keys: list[str] = []
@@ -533,7 +485,6 @@ async def _run_snapshot_async(
         store.write_parquet(key, path.read_bytes())
         parquet_keys.append(key)
 
-    # 3) Build curated JSON artifacts.
     overview = _build_overview(binance, deribit_futures)
     vol = _build_vol(deribit_options, deribit_futures, asof)
     carry = _build_carry(binance, deribit_futures, asof)
@@ -567,12 +518,7 @@ async def _run_snapshot_async(
 
 
 def _default_scratch_dir(store: ArtifactStore) -> Path:
-    """Where TimeSeriesStore stages Parquet before upload.
-
-    For local stores we write directly to ``base_dir/parquet`` so the
-    on-disk layout matches the historical MVP. For remote stores we use
-    a fresh tmpfs path under ``/tmp`` (Lambda-friendly).
-    """
+    """Return the Parquet staging directory for a store."""
     if isinstance(store, LocalArtifactStore):
         return store.parquet_dir
     return Path("/tmp/basis-vol-lab/parquet")
@@ -583,12 +529,7 @@ def run_snapshot(
     *,
     scratch_dir: Path | str | None = None,
 ) -> SnapshotResult:
-    """Synchronous entry point. Runs one snapshot end-to-end.
-
-    ``store`` accepts an :class:`ArtifactStore` or a path/str (in which
-    case a :class:`LocalArtifactStore` is constructed for backwards
-    compatibility with the original ``data_dir`` signature).
-    """
+    """Run one snapshot end-to-end."""
     if store is None:
         artifact_store: ArtifactStore = LocalArtifactStore(DEFAULT_DATA_DIR)
     elif isinstance(store, str | Path):
@@ -630,8 +571,6 @@ def main() -> int:
 
     store: ArtifactStore
     if args.backend == "r2":
-        # Force the r2 path even if BASIS_ARTIFACT_BACKEND is unset
-        # (e.g. running locally with explicit R2 creds in env).
         os.environ["BASIS_ARTIFACT_BACKEND"] = "r2"
         store = store_from_env()
     else:

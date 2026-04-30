@@ -1,32 +1,4 @@
-"""Pluggable artifact store for curated snapshot outputs.
-
-The MVP wrote curated JSON artifacts (`meta.json`, `overview.json`, …)
-to a local directory and read them back from the same path. Phase D of
-the cloud rollout introduces the :class:`ArtifactStore` protocol so the
-same orchestration code can run on a developer laptop (writing under
-``data/``) or inside an AWS Lambda container (writing/reading against a
-Cloudflare R2 bucket via the S3-compatible API).
-
-Three concrete implementations live here:
-
-* :class:`LocalArtifactStore` — current behaviour. Writes JSON under
-  ``base_dir / "artifacts" / name`` and Parquet under
-  ``base_dir / key`` (so ``key="parquet/deribit/.../tickers.parquet"``
-  lands at the same location as :class:`basis_persistence.TimeSeriesStore`
-  expects). Used by the CLI and ``mise run snapshot``.
-* :class:`R2ArtifactStore` — boto3 against the R2 S3-compatible
-  endpoint. JSON keyed at ``{prefix}artifacts/{name}``, Parquet keyed at
-  ``{prefix}{key}``. Used inside Lambda when
-  ``BASIS_ARTIFACT_BACKEND=r2``.
-* :class:`InMemoryArtifactStore` — round-tripping JSON via the standard
-  library so tests stay hermetic without spinning up moto. The contract
-  test in ``tests/test_storage.py`` exercises both this and the local
-  store.
-
-The :func:`store_from_env` factory inspects the same env vars Terraform
-writes to the Lambda function (`BASIS_ARTIFACT_BACKEND`, `BASIS_DATA_DIR`,
-`BASIS_R2_*`) and is the only entry point used by ``basis_api.main``.
-"""
+"""Artifact-store backends for dashboard JSON and Parquet snapshots."""
 
 from __future__ import annotations
 
@@ -41,18 +13,7 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class ArtifactStore(Protocol):
-    """Read/write curated JSON artifacts and Parquet rollups.
-
-    Two namespaces:
-
-    * ``read_json``/``write_json`` operate on short JSON artifacts
-      identified by a bare filename (e.g. ``"meta.json"``). The store
-      decides where to put them.
-    * ``write_parquet`` accepts a relative key (e.g.
-      ``"parquet/deribit/2026-05-01/tickers.parquet"``) so the snapshot
-      orchestrator can hand off bytes already produced by
-      :class:`basis_persistence.TimeSeriesStore`.
-    """
+    """Read/write curated JSON artifacts and Parquet rollups."""
 
     def read_json(self, name: str) -> dict[str, Any]: ...
 
@@ -67,7 +28,7 @@ def _dump_json(payload: Any) -> str:
 
 
 class LocalArtifactStore:
-    """Filesystem-backed implementation. Mirrors the MVP layout."""
+    """Filesystem-backed artifact store."""
 
     def __init__(self, base_dir: str | Path) -> None:
         self._base = Path(base_dir)
@@ -106,7 +67,7 @@ class LocalArtifactStore:
 
 
 class InMemoryArtifactStore:
-    """Hermetic test double — round-trips JSON exactly like a real store."""
+    """In-memory artifact store for tests."""
 
     def __init__(self) -> None:
         self.json_blobs: dict[str, dict[str, Any]] = {}
@@ -118,8 +79,7 @@ class InMemoryArtifactStore:
         return self.json_blobs[name]
 
     def write_json(self, name: str, payload: Any) -> None:
-        # Round-trip through the canonical serializer so callers see the
-        # same coercions (datetime -> str, etc.) they'd get from disk.
+        # Match disk/R2 JSON coercions.
         self.json_blobs[name] = json.loads(_dump_json(payload))
 
     def write_parquet(self, key: str, data: bytes) -> None:
@@ -127,13 +87,7 @@ class InMemoryArtifactStore:
 
 
 class R2ArtifactStore:
-    """Cloudflare R2 backend over the S3-compatible API.
-
-    R2 charges nothing for egress and is region-pinned to ``apac`` for
-    this project (see ``infra/terraform/main.tf``). We rely on the
-    standard botocore S3 client with a custom ``endpoint_url`` instead
-    of taking a dependency on ``rclone``/``wrangler``.
-    """
+    """Cloudflare R2 backend over the S3-compatible API."""
 
     def __init__(
         self,
@@ -145,8 +99,7 @@ class R2ArtifactStore:
         prefix: str = "",
         region: str = "auto",
     ) -> None:
-        # Lazy import keeps boto3 out of the local-dev install path; the
-        # Lambda image installs the `cloud` extra explicitly.
+        # Keep boto3 out of local installs unless the cloud extra is present.
         try:
             import boto3  # type: ignore[import-not-found]
             from botocore.config import Config  # type: ignore[import-not-found]
@@ -164,12 +117,7 @@ class R2ArtifactStore:
             aws_access_key_id=access_key,
             aws_secret_access_key=secret,
             region_name=region,
-            # R2 needs SigV4 + path-style addressing (per Cloudflare R2
-            # docs). We deliberately pin `boto3<1.36` in the `cloud`
-            # extra to avoid the flexible-checksum defaults that ≥ 1.36
-            # added — those wrap PutObject in an `aws-chunked` body
-            # framing that R2 signs differently than AWS S3 and rejects
-            # with `SignatureDoesNotMatch`. See boto3#4392.
+            # R2 requires SigV4 + path-style addressing.
             config=Config(
                 signature_version="s3v4",
                 s3={"addressing_style": "path"},
@@ -224,17 +172,7 @@ def _require(env: Mapping[str, str], name: str) -> str:
 
 
 def store_from_env(env: Mapping[str, str] | None = None) -> ArtifactStore:
-    """Build the artifact store implied by environment configuration.
-
-    Recognises:
-
-    * ``BASIS_ARTIFACT_BACKEND`` — ``local`` (default) or ``r2``.
-    * ``BASIS_DATA_DIR`` — local base directory (default ``data``).
-    * ``BASIS_R2_ENDPOINT``, ``BASIS_R2_BUCKET``,
-      ``BASIS_R2_ACCESS_KEY_ID``, ``BASIS_R2_SECRET_ACCESS_KEY`` — R2
-      credentials. Optional ``BASIS_R2_PREFIX`` segments artifacts inside
-      a shared bucket.
-    """
+    """Build an artifact store from `BASIS_*` environment variables."""
     e = os.environ if env is None else env
     backend = e.get("BASIS_ARTIFACT_BACKEND", "local").lower()
     if backend == "local":

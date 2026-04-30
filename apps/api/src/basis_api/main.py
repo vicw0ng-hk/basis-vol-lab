@@ -1,14 +1,4 @@
-"""FastAPI service exposing curated artifacts as JSON.
-
-Lambda-friendly: the module-level ``app`` object is wrapped by
-:class:`mangum.Mangum` so the same code can run under ``uvicorn`` locally
-or as an AWS Lambda handler in production. The handler is exposed as
-``handler`` for that purpose.
-
-Artifact storage is pluggable via :func:`basis_api.storage.store_from_env`:
-local filesystem in dev (``BASIS_ARTIFACT_BACKEND=local``, the default)
-and Cloudflare R2 in cloud mode (``BASIS_ARTIFACT_BACKEND=r2``).
-"""
+"""FastAPI service for curated dashboard artifacts."""
 
 from __future__ import annotations
 
@@ -25,7 +15,6 @@ _store = store_from_env()
 
 app = FastAPI(title="Basis & Vol Lab API", version="0.1.0")
 
-# Permissive CORS for local dev. Tighten via BASIS_CORS_ORIGINS in prod.
 _origins_raw = os.environ.get("BASIS_CORS_ORIGINS", "*")
 _allow_origins = (
     ["*"]
@@ -86,7 +75,7 @@ def signals() -> dict[str, Any]:
 
 @app.post("/api/refresh")
 def refresh() -> dict[str, Any]:
-    """Re-run the snapshot synchronously and return the new meta."""
+    """Run one refresh and return its summary."""
     result = run_snapshot(_store)
     return {
         "generated_at": result.generated_at.isoformat(),
@@ -96,7 +85,6 @@ def refresh() -> dict[str, Any]:
     }
 
 
-# Lambda entry point. Imported lazily so the dependency is optional in dev.
 try:
     from mangum import Mangum
 

@@ -1,19 +1,4 @@
-"""Compare our Black-76 IV against Deribit's `mark_iv`.
-
-Deribit publishes `mark_iv` on every option ticker. By solving our own
-Black-76 IV from the option's mark **price** and the matching future's
-mark price, we can produce a per-instrument error series that:
-
-    * proves our pricer is implemented correctly (errors should be on
-      the order of `1e-3` vol points or smaller for liquid quotes),
-    * makes price/Greeks reproducible offline from stored snapshots, and
-    * gives us a quality-control signal when an exchange feed is
-      misbehaving (sudden spike in error → upstream issue).
-
-This module is **pure**: no network I/O. The CLI in `__main__.py` is the
-thin wrapper that pulls a live snapshot via the existing Deribit
-connector.
-"""
+"""Compare solved Black-76 IV against Deribit's `mark_iv`."""
 
 from __future__ import annotations
 
@@ -49,19 +34,7 @@ def validate_iv(
     *,
     asof: datetime,
 ) -> pd.DataFrame:
-    """Compute our IV for each option snapshot and compare to `mark_iv`.
-
-    Args:
-        snapshots: Option `TickerSnapshot`s. Non-options are ignored.
-        forwards_by_expiry: Forward (matching-future mark) price keyed by
-            expiry. Options whose expiry is missing here are skipped.
-        asof: Reference timestamp for time-to-expiry.
-
-    Returns:
-        DataFrame with columns matching `IVValidationRow`. NaNs in
-        `our_iv` indicate snapshots where the IV solve failed (typically
-        deep OTM options where the bid/ask straddles intrinsic value).
-    """
+    """Return one IV-error row per valid option snapshot."""
     rows: list[IVValidationRow] = []
     asof_ts = pd.Timestamp(asof)
     if asof_ts.tzinfo is None:
@@ -78,8 +51,7 @@ def validate_iv(
         if F is None or F <= 0:
             continue
 
-        # Deribit option mark_price is in coin terms (BTC/ETH); the
-        # USD-denominated premium needed for Black-76 is mark * F.
+        # Deribit option marks are coin-denominated.
         usd_price = s.mark_price * F
 
         T = (pd.Timestamp(s.expiry) - asof_ts).total_seconds() / (365.0 * 86400.0)
@@ -124,12 +96,7 @@ def validate_iv(
 
 
 def summarize_by_tenor(errors: pd.DataFrame) -> pd.DataFrame:
-    """Per-expiry summary of IV errors.
-
-    Returns a DataFrame indexed by expiry with columns
-    `[count, mean_abs_err, p95_abs_err, max_abs_err]`. Rows where
-    `our_iv` is NaN are excluded from the aggregates.
-    """
+    """Summarize IV errors by expiry."""
     if errors.empty:
         return pd.DataFrame(
             columns=["count", "mean_abs_err", "p95_abs_err", "max_abs_err"]

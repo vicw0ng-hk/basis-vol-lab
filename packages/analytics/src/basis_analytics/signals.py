@@ -1,20 +1,4 @@
-"""Headline regime signals.
-
-Three composite signals defined in the initial plan:
-
-    * **Carry-vol divergence**: percentile-rank of annualized carry
-      *minus* percentile-rank of (IV − RV). Positive = carry rich
-      relative to vol; negative = carry cheap.
-    * **Skew stress**: percentile-rank of front-end 25-delta
-      risk-reversal extremes plus percentile-rank of OI concentration.
-    * **Regime-change alert**: fires when the one-day moves in carry,
-      skew, and OI percentiles all exceed a configurable threshold.
-
-Each function takes pandas Series of *already-percentile-ranked* inputs
-and returns a pandas Series of the same index. Keeping the percentile
-rank as an explicit step makes the code easy to inspect and the
-interview narrative ("non-magical, defensible") easy to tell.
-"""
+"""Headline regime-signal formulas built from percentile-ranked series."""
 
 from __future__ import annotations
 

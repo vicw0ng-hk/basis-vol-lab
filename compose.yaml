@@ -1,11 +1,4 @@
-# Two-service local stack for the Basis & Vol Lab MVP.
-#
-# `docker compose up --build` (or OrbStack's `orb compose up`) starts:
-#   - api: FastAPI + uvicorn on :8000, reads/writes ./data
-#   - web: nginx serving the built React SPA on :5173, proxying /api -> api
-#
-# Both share the host's ./data directory as a bind mount so `mise run snapshot`
-# on the host and POST /api/refresh from a container update the same artifacts.
+# Local API + web stack. Both services share ./data.
 services:
   api:
     build:
