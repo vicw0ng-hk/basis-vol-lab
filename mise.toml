@@ -41,6 +41,10 @@ terraform -chdir=infra/terraform init -backend=false -input=false
 terraform -chdir=infra/terraform validate
 """
 
+[tasks.deploy]
+description = "Trigger a Terraform apply via HCP Terraform (interactive approval)."
+run = "terraform -chdir=infra/terraform apply"
+
 [tasks.collect]
 description = "Smoke-run the Deribit collector (BTC, prints a few tickers)"
 run = "uv run python -m basis_connectors.deribit --currency BTC --limit 5"

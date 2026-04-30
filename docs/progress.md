@@ -9,6 +9,7 @@
 - **Step 5** — Analytics package: Black-76 pricer + IV inversion (Brent) + analytic Greeks + realized-vol estimators + carry/funding helpers + smile/term-structure interpolation + the three headline signals + an IV-validation CLI. Live validation against Deribit shows p95 IV error < 0.005 vol points on liquid expiries (30D+). See [`docs/planning/6.step5-analytics.md`](planning/6.step5-analytics.md). Six-lecture markdown course under [`docs/analytics/`](analytics/README.md).
 - **Step 6 — MVP product shell** — snapshot orchestrator (`basis_api.snapshot`) wires connectors → `TimeSeriesStore` and emits curated JSON artifacts; FastAPI service (`basis_api.main`) serves the artifacts and exposes `POST /api/refresh`; Vite/React/Tailwind v4 SPA with light/dark toggle and four pages (Overview, Volatility, Carry, Signals); Dockerfiles for both apps and a `compose.yaml` that runs end-to-end on **OrbStack**. See [`docs/planning/7.step6-product-shell.md`](planning/7.step6-product-shell.md). **This closes the local MVP.**
 - **Step 7 (Phase A) — Terraform skeleton** — flat layout under [`infra/terraform/`](../infra/terraform/) (single HCP Terraform workspace `basis-vol-lab` in org `vsh852`, `cloudflare` + `aws` + `random` providers, AWS auth via OIDC dynamic credentials matching `~/dev/aws/bootstrap-oidc/`, Cloudflare account/zone IDs discovered at plan time via `data "cloudflare_zone"` keyed on `var.domain` (`vsh852.com`)). `mise run tf:fmt` / `tf:validate` wired and `check` now depends on `tf:fmt`. CI consolidated into a single [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) with a `terraform-fmt-validate` job (action versions bumped to current latest: `actions/checkout@v6`, `astral-sh/setup-uv@v8`, `hashicorp/setup-terraform@v4`). TFC workspace and OIDC role configured by the operator; first remote plan succeeds. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
+- **Step 7 (Phase B) — Cloudflare resources** — [`infra/terraform/main.tf`](../infra/terraform/main.tf) now defines `cloudflare_r2_bucket.artifacts` (`basis-vol-lab-artifacts`, apac, public access disabled), `cloudflare_r2_bucket_lifecycle.artifacts` (deletes `parquet/` objects after 30 days, aborts dangling multipart uploads after 24 h), `cloudflare_d1_database.meta` (`basis-vol-lab-meta`, apac primary), and `cloudflare_pages_project.web` (`basis-vol-lab`, GitHub source `vicw0ng-hk/basis-vol-lab`, prod branch `master`, build `cd apps/web && npm ci && npm run build` → `apps/web/dist`, Pages Functions disabled). Outputs surface bucket name, R2 S3-compatible endpoint URL, D1 UUID/name, and the auto-assigned `*.pages.dev` subdomain. `mise run deploy` task wired (triggers a remote `terraform apply` via the HCP cloud block). See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 
 ## Abandoned
 
@@ -24,18 +25,17 @@
 - **Backtests of the headline signals** — signals are interpretable on inspection; backtesting is deferred so we don't blow the schedule.
 - **Rolling-percentile signals in `/api/signals`** — until the snapshot store has accumulated several weeks of history, the signals page surfaces the raw funding-vs-carry inputs and notes the limitation.
 - **Historical replay page** — fifth page from the original plan; deferred behind cloud deployment.
-- `mise run deploy` — wired when cloud deployment lands (step 7).
+- **D1 schema migrations directory (`packages/persistence/migrations/`).** Generated from the SQLite DDL once the `D1MetadataStore` sibling lands in Phase D; until then the local SQLite path is the only live MetadataStore implementation.
 
 ## Next
 
-→ **Step 7 — Phase B (Cloudflare resources)**: provision the R2 bucket
-(`basis-vol-lab-artifacts`, public access disabled, `parquet/**` lifecycle
-rule), the D1 database (`basis-vol-lab-meta`, schema migrated from the
-existing SQLite DDL via `wrangler d1 migrations`), and the Pages project
-(`basis-vol-lab`, build `cd apps/web && npm ci && npm run build`, output
-`apps/web/dist`, custom domain TBD, Pages Functions disabled, `_redirects`
-rewrite to API Gateway). Phase A skeleton is in place; Phase B fills in
-`infra/terraform/main.tf` + `outputs.tf`. Plan: [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
+→ **Step 7 — Phase C (AWS Lambda + API Gateway)**: package
+`apps/api/` as a Lambda container image (ECR repo
+`basis-vol-lab/api`, Python 3.14 arm64, `Mangum` handler), provision
+an HTTP API Gateway routing `/{proxy+}` to the function, set the
+Lambda env (`BASIS_DATA_DIR=/tmp/data`, `BASIS_ARTIFACT_BACKEND=r2`,
+R2 endpoint + creds, CORS origin), and emit a least-privilege IAM
+role. Plan: [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 
 ## Notes
 

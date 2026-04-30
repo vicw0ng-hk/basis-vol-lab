@@ -18,8 +18,8 @@ variable "subdomain" {
 
 variable "aws_region" {
   type        = string
-  description = "AWS region for Lambda + ECR. Tokyo by default — outside Binance's restricted-country list and close to HK."
-  default     = "ap-northeast-1"
+  description = "AWS region for Lambda + ECR."
+  default     = "ap-east-1"
 }
 
 variable "project_name" {
