@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -38,7 +39,7 @@ from basis_contracts import (
 )
 from basis_persistence import TimeSeriesStore
 
-from basis_api.storage import ArtifactStore, LocalArtifactStore
+from basis_api.storage import ArtifactStore, LocalArtifactStore, store_from_env
 
 _DERIBIT_BASE = "https://www.deribit.com/api/v2"
 
@@ -608,13 +609,35 @@ def main() -> int:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--backend",
+        choices=("local", "r2"),
+        default="local",
+        help=(
+            "Artifact backend. 'local' writes under --data-dir; 'r2' "
+            "uses store_from_env() and reads BASIS_R2_* from the environment."
+        ),
+    )
+    parser.add_argument(
         "--data-dir",
         type=Path,
         default=DEFAULT_DATA_DIR,
-        help="Directory under which artifacts/ and parquet/ are written.",
+        help=(
+            "Local backend only: directory under which artifacts/ and "
+            "parquet/ are written."
+        ),
     )
     args = parser.parse_args()
-    result = run_snapshot(LocalArtifactStore(args.data_dir))
+
+    store: ArtifactStore
+    if args.backend == "r2":
+        # Force the r2 path even if BASIS_ARTIFACT_BACKEND is unset
+        # (e.g. running locally with explicit R2 creds in env).
+        os.environ["BASIS_ARTIFACT_BACKEND"] = "r2"
+        store = store_from_env()
+    else:
+        store = LocalArtifactStore(args.data_dir)
+
+    result = run_snapshot(store)
     print(  # noqa: T201
         f"snapshot ok: {result.deribit_tickers} deribit tickers, "
         f"{result.binance_funding_rows} binance funding rows -> "

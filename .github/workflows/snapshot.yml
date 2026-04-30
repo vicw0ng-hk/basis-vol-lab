@@ -1,0 +1,45 @@
+name: snapshot
+
+# Best-effort scheduled snapshot. Pulls one Deribit + Binance snapshot
+# and uploads curated artifacts to Cloudflare R2 so the public dashboard
+# stays fresh without a human pressing **Refresh**. Live freshness still
+# comes from `POST /api/refresh` against the Lambda — GitHub Actions cron
+# is best-effort (≥ 5 min cadence, may slip at the top of the hour).
+
+on:
+  schedule:
+    # Every 15 minutes. GitHub Actions does not guarantee on-time runs.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+# Don't pile up overlapping snapshot runs — if one is still going when
+# the next cron fires, drop the older one.
+concurrency:
+  group: snapshot
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    name: snapshot → R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASIS_ARTIFACT_BACKEND: r2
+      BASIS_R2_ENDPOINT: ${{ secrets.BASIS_R2_ENDPOINT }}
+      BASIS_R2_BUCKET: ${{ secrets.BASIS_R2_BUCKET }}
+      BASIS_R2_ACCESS_KEY_ID: ${{ secrets.BASIS_R2_ACCESS_KEY_ID }}
+      BASIS_R2_SECRET_ACCESS_KEY: ${{ secrets.BASIS_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Install workspace (with cloud extras)
+        run: uv sync --package basis-api --extra cloud
+
+      - name: Run snapshot
+        run: uv run --package basis-api python -m basis_api.snapshot --backend r2
