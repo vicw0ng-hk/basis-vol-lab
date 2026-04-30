@@ -33,3 +33,7 @@ depends = ["format", "lint", "typecheck", "test"]
 [tasks.collect]
 description = "Smoke-run the Deribit collector (BTC, prints a few tickers)"
 run = "uv run python -m basis_connectors.deribit --currency BTC --limit 5"
+
+[tasks."collect:binance"]
+description = "Smoke-run the Binance collector against live prod fstream"
+run = "uv run python -m basis_connectors.binance --symbols BTCUSDT ETHUSDT --limit 10"
