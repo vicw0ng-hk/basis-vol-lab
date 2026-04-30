@@ -18,7 +18,6 @@ CLI (``python -m basis_api.snapshot``), from a FastAPI endpoint
 from __future__ import annotations
 
 import asyncio
-import json
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -39,6 +38,8 @@ from basis_contracts import (
 )
 from basis_persistence import TimeSeriesStore
 
+from basis_api.storage import ArtifactStore, LocalArtifactStore
+
 _DERIBIT_BASE = "https://www.deribit.com/api/v2"
 
 DEFAULT_DATA_DIR = Path("data")
@@ -56,8 +57,9 @@ class SnapshotResult:
     generated_at: datetime
     deribit_tickers: int
     binance_funding_rows: int
-    artifacts_dir: Path
-    parquet_paths: list[Path]
+    store_repr: str
+    artifact_names: list[str]
+    parquet_keys: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -494,13 +496,18 @@ def _safe_diff(a: float | None, b: float | None) -> float | None:
 # ---------------------------------------------------------------------------
 
 
-def _write_json(path: Path, payload: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2, sort_keys=True, default=str)
+_ARTIFACT_NAMES = (
+    "meta.json",
+    "overview.json",
+    "vol.json",
+    "carry.json",
+    "signals.json",
+)
 
 
-async def _run_snapshot_async(data_dir: Path) -> SnapshotResult:
+async def _run_snapshot_async(
+    store: ArtifactStore, scratch_dir: Path
+) -> SnapshotResult:
     asof = datetime.now(tz=UTC)
 
     # 1) Live pulls in parallel.
@@ -514,12 +521,18 @@ async def _run_snapshot_async(data_dir: Path) -> SnapshotResult:
     deribit_options = btc_opts + eth_opts
     deribit_futures = btc_futs + eth_futs
 
-    # 2) Persist tickers via TimeSeriesStore (Parquet).
-    parquet_dir = data_dir / "parquet"
-    store = TimeSeriesStore(parquet_dir)
-    parquet_paths = store.write_snapshots(deribit_options + deribit_futures)
+    # 2) Persist tickers via TimeSeriesStore (Parquet on local scratch),
+    #    then upload bytes to the artifact store under "parquet/...".
+    ts_store = TimeSeriesStore(scratch_dir)
+    parquet_paths = ts_store.write_snapshots(deribit_options + deribit_futures)
+    parquet_keys: list[str] = []
+    for path in parquet_paths:
+        rel = path.relative_to(scratch_dir).as_posix()
+        key = f"parquet/{rel}"
+        store.write_parquet(key, path.read_bytes())
+        parquet_keys.append(key)
 
-    # 3) Build artifacts.
+    # 3) Build curated JSON artifacts.
     overview = _build_overview(binance, deribit_futures)
     vol = _build_vol(deribit_options, deribit_futures, asof)
     carry = _build_carry(binance, deribit_futures, asof)
@@ -532,25 +545,62 @@ async def _run_snapshot_async(data_dir: Path) -> SnapshotResult:
         "binance_funding_rows": sum(len(v) for v in binance.funding.values()),
     }
 
-    artifacts = data_dir / "artifacts"
-    _write_json(artifacts / "meta.json", meta)
-    _write_json(artifacts / "overview.json", overview)
-    _write_json(artifacts / "vol.json", vol)
-    _write_json(artifacts / "carry.json", carry)
-    _write_json(artifacts / "signals.json", signals)
+    payloads: dict[str, Any] = {
+        "meta.json": meta,
+        "overview.json": overview,
+        "vol.json": vol,
+        "carry.json": carry,
+        "signals.json": signals,
+    }
+    for name in _ARTIFACT_NAMES:
+        store.write_json(name, payloads[name])
 
     return SnapshotResult(
         generated_at=asof,
         deribit_tickers=len(deribit_options) + len(deribit_futures),
         binance_funding_rows=meta["binance_funding_rows"],
-        artifacts_dir=artifacts,
-        parquet_paths=parquet_paths,
+        store_repr=repr(store),
+        artifact_names=list(_ARTIFACT_NAMES),
+        parquet_keys=parquet_keys,
     )
 
 
-def run_snapshot(data_dir: Path | str = DEFAULT_DATA_DIR) -> SnapshotResult:
-    """Synchronous entry point. Runs one snapshot end-to-end."""
-    return asyncio.run(_run_snapshot_async(Path(data_dir)))
+def _default_scratch_dir(store: ArtifactStore) -> Path:
+    """Where TimeSeriesStore stages Parquet before upload.
+
+    For local stores we write directly to ``base_dir/parquet`` so the
+    on-disk layout matches the historical MVP. For remote stores we use
+    a fresh tmpfs path under ``/tmp`` (Lambda-friendly).
+    """
+    if isinstance(store, LocalArtifactStore):
+        return store.parquet_dir
+    return Path("/tmp/basis-vol-lab/parquet")
+
+
+def run_snapshot(
+    store: ArtifactStore | Path | str | None = None,
+    *,
+    scratch_dir: Path | str | None = None,
+) -> SnapshotResult:
+    """Synchronous entry point. Runs one snapshot end-to-end.
+
+    ``store`` accepts an :class:`ArtifactStore` or a path/str (in which
+    case a :class:`LocalArtifactStore` is constructed for backwards
+    compatibility with the original ``data_dir`` signature).
+    """
+    if store is None:
+        artifact_store: ArtifactStore = LocalArtifactStore(DEFAULT_DATA_DIR)
+    elif isinstance(store, str | Path):
+        artifact_store = LocalArtifactStore(store)
+    else:
+        artifact_store = store
+
+    scratch = (
+        Path(scratch_dir)
+        if scratch_dir is not None
+        else _default_scratch_dir(artifact_store)
+    )
+    return asyncio.run(_run_snapshot_async(artifact_store, scratch))
 
 
 def main() -> int:
@@ -564,11 +614,11 @@ def main() -> int:
         help="Directory under which artifacts/ and parquet/ are written.",
     )
     args = parser.parse_args()
-    result = run_snapshot(args.data_dir)
+    result = run_snapshot(LocalArtifactStore(args.data_dir))
     print(  # noqa: T201
         f"snapshot ok: {result.deribit_tickers} deribit tickers, "
         f"{result.binance_funding_rows} binance funding rows -> "
-        f"{result.artifacts_dir}"
+        f"{result.store_repr}"
     )
     return 0
 

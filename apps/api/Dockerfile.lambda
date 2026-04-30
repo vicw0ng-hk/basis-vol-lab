@@ -45,7 +45,7 @@ COPY packages/connectors/src packages/connectors/src
 COPY packages/analytics/src packages/analytics/src
 COPY apps/api/src apps/api/src
 
-RUN uv sync --frozen --package basis-api --no-dev \
+RUN uv sync --frozen --package basis-api --no-dev --extra cloud \
     && uv pip install --python /app/.venv/bin/python awslambdaric
 
 # --------------------------------------------------------------------

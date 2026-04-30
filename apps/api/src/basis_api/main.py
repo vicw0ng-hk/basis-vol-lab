@@ -4,22 +4,24 @@ Lambda-friendly: the module-level ``app`` object is wrapped by
 :class:`mangum.Mangum` so the same code can run under ``uvicorn`` locally
 or as an AWS Lambda handler in production. The handler is exposed as
 ``handler`` for that purpose.
+
+Artifact storage is pluggable via :func:`basis_api.storage.store_from_env`:
+local filesystem in dev (``BASIS_ARTIFACT_BACKEND=local``, the default)
+and Cloudflare R2 in cloud mode (``BASIS_ARTIFACT_BACKEND=r2``).
 """
 
 from __future__ import annotations
 
-import json
 import os
-from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from basis_api.snapshot import DEFAULT_DATA_DIR, run_snapshot
+from basis_api.snapshot import run_snapshot
+from basis_api.storage import store_from_env
 
-DATA_DIR = Path(os.environ.get("BASIS_DATA_DIR", str(DEFAULT_DATA_DIR)))
-ARTIFACTS_DIR = DATA_DIR / "artifacts"
+_store = store_from_env()
 
 app = FastAPI(title="Basis & Vol Lab API", version="0.1.0")
 
@@ -39,18 +41,17 @@ app.add_middleware(
 
 
 def _load(name: str) -> dict[str, Any]:
-    path = ARTIFACTS_DIR / name
-    if not path.exists():
+    try:
+        return _store.read_json(name)
+    except FileNotFoundError as exc:
         raise HTTPException(
             status_code=503,
             detail=(
-                f"artifact '{name}' not found under {ARTIFACTS_DIR}. "
+                f"artifact {name!r} not found in {_store!r}. "
                 "Run the snapshot first (POST /api/refresh or "
                 "`mise run snapshot`)."
             ),
-        )
-    with path.open(encoding="utf-8") as fh:
-        return json.load(fh)
+        ) from exc
 
 
 @app.get("/healthz")
@@ -86,11 +87,12 @@ def signals() -> dict[str, Any]:
 @app.post("/api/refresh")
 def refresh() -> dict[str, Any]:
     """Re-run the snapshot synchronously and return the new meta."""
-    result = run_snapshot(DATA_DIR)
+    result = run_snapshot(_store)
     return {
         "generated_at": result.generated_at.isoformat(),
         "deribit_tickers": result.deribit_tickers,
         "binance_funding_rows": result.binance_funding_rows,
+        "store": result.store_repr,
     }
 
 

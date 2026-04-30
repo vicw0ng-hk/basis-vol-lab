@@ -11,6 +11,7 @@
 - **Step 7 (Phase A) — Terraform skeleton** — flat layout under [`infra/terraform/`](../infra/terraform/) (single HCP Terraform workspace `basis-vol-lab` in org `vsh852`, `cloudflare` + `aws` + `random` providers, AWS auth via OIDC dynamic credentials matching `~/dev/aws/bootstrap-oidc/`, Cloudflare account/zone IDs discovered at plan time via `data "cloudflare_zone"` keyed on `var.domain` (`vsh852.com`)). `mise run tf:fmt` / `tf:validate` wired and `check` now depends on `tf:fmt`. CI consolidated into a single [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) with a `terraform-fmt-validate` job (action versions bumped to current latest: `actions/checkout@v6`, `astral-sh/setup-uv@v8`, `hashicorp/setup-terraform@v4`). TFC workspace and OIDC role configured by the operator; first remote plan succeeds. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 - **Step 7 (Phase B) — Cloudflare resources** — [`infra/terraform/main.tf`](../infra/terraform/main.tf) defines `cloudflare_r2_bucket.basis_artifacts` (`basis-vol-lab-artifacts`, apac, public access disabled), `cloudflare_r2_bucket_lifecycle.basis_artifacts` (deletes `parquet/` objects after 30 days, aborts dangling multipart uploads after 24 h), `cloudflare_d1_database.basis_meta` (`basis-vol-lab-meta`, apac primary), and `cloudflare_pages_project.basis_web` (`basis-vol-lab`, GitHub source `vicw0ng-hk/basis-vol-lab`, prod branch `master`, `root_dir=apps/web`, build `npm ci && npm run build` → `dist`, Pages Functions disabled, `SKIP_DEPENDENCY_INSTALL=true` env var on prod+preview deploy configs). First production deploy is live at `https://basis-vol-lab.pages.dev/`. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 - **Step 7 (Phase C) — AWS Lambda + API Gateway** — [`infra/terraform/main.tf`](../infra/terraform/main.tf) defines `aws_ecr_repository.api` (`basis-vol-lab/api`, mutable, scan-on-push, untagged-after-7-days lifecycle), `aws_iam_role.lambda_exec` with a least-privilege inline policy for CloudWatch Logs only, `aws_cloudwatch_log_group.api` (`/aws/lambda/basis-vol-lab-api`, 3-day retention), `aws_lambda_function.api` (container `package_type=Image`, `arm64`, 1024 MB / 30 s / 1 GB ephemeral, `lifecycle.ignore_changes=[image_uri]`), and an `aws_apigatewayv2_api` (HTTP API, `$default` route → Lambda integration, CORS pinned to `https://basis-vol-lab.pages.dev`). The Lambda + APIGW + Pages `VITE_API_URL` env var are gated on a TFC workspace variable `lambda_image_pushed` (default `false`) — the HCP Terraform workspace is VCS-driven so `terraform apply -target=...` from the laptop isn't available; the gate expresses the two-phase apply that ECR bootstrap demands. Bootstrap completed 2026-05-01: (1) PR with `lambda_image_pushed=false` merged → TFC created ECR + IAM + log group, (2) `mise run lambda:push` built and pushed the first arm64 image, (3) flipped `lambda_image_pushed=true` in the TFC UI → TFC created Lambda + APIGW and updated the Pages env var. Smoke test (`curl $API_URL/healthz`, `POST /api/refresh`, `GET /api/overview`) green against the live `https://<api-id>.execute-api.ap-east-1.amazonaws.com` invoke URL. New [`apps/api/Dockerfile.lambda`](../apps/api/Dockerfile.lambda) (uv-managed builder + `awslambdaric` on `python:3.14-slim`). New mise tasks `lambda:build` / `lambda:push` / `lambda:update` derive ECR URL + login from `aws sts get-caller-identity`. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
+- **Step 7 (Phase D) — `basis_api` cloud-mode wiring** — New [`apps/api/src/basis_api/storage.py`](../apps/api/src/basis_api/storage.py) introduces a runtime-checkable `ArtifactStore` `Protocol` plus `LocalArtifactStore`, `R2ArtifactStore` (boto3 against the R2 S3-compatible endpoint with SigV4 + path-style addressing), and an `InMemoryArtifactStore` test double. `store_from_env()` dispatches on `BASIS_ARTIFACT_BACKEND` (`local` | `r2`). `snapshot.run_snapshot` now takes an `ArtifactStore | Path | str | None`; Parquet is staged via `TimeSeriesStore` to a scratch dir (`base_dir/parquet` for local, `/tmp/basis-vol-lab/parquet` for R2) and uploaded to the artifact store under `parquet/<venue>/<date>/tickers.parquet`. New [`packages/persistence/src/basis_persistence/d1.py`](../packages/persistence/src/basis_persistence/d1.py) ships a `D1MetadataStore` sibling that mirrors the SQLite store's surface but talks to Cloudflare's D1 REST API via httpx; the SQLite path stays the local default. New [`packages/persistence/migrations/0001_init.sql`](../packages/persistence/migrations/0001_init.sql) holds the schema for `wrangler d1 migrations apply basis-vol-lab-meta --remote`. New `[cloud]` optional-dependencies on `basis-api` (boto3) and `basis-persistence` (httpx); `Dockerfile.lambda` installs `--extra cloud`. Lambda env vars wired in [`infra/terraform/main.tf`](../infra/terraform/main.tf) (`BASIS_ARTIFACT_BACKEND` auto-flips to `r2` when sensitive vars `r2_access_key_id` / `r2_secret_access_key` are set in the TFC workspace). New tests: [`tests/test_storage.py`](../tests/test_storage.py) (shared `_ArtifactStoreContract` mixin across local + in-memory + `store_from_env`), [`tests/test_d1_metadata.py`](../tests/test_d1_metadata.py) (`httpx.MockTransport` asserts the exact SQL/params + auth header). 110 tests green; pyright + ruff + `terraform validate` clean. See [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 
 ## Abandoned
 
@@ -26,29 +27,25 @@
 - **Backtests of the headline signals** — signals are interpretable on inspection; backtesting is deferred so we don't blow the schedule.
 - **Rolling-percentile signals in `/api/signals`** — until the snapshot store has accumulated several weeks of history, the signals page surfaces the raw funding-vs-carry inputs and notes the limitation.
 - **Historical replay page** — fifth page from the original plan; deferred behind cloud deployment.
-- **D1 schema migrations directory (`packages/persistence/migrations/`).** Generated from the SQLite DDL once the `D1MetadataStore` sibling lands in Phase D; until then the local SQLite path is the only live MetadataStore implementation.
-- **R2 artifact backend in `basis_api`.** Lambda is live (Phase C
-  done) but still reads/writes local `/tmp/data`, so a single warm
-  container is required for a refresh + read round trip. Phase D
-  switches `_load`/`run_snapshot` to an `ArtifactStore` protocol with
-  `LocalArtifactStore` + `R2ArtifactStore` implementations and adds
-  the `D1MetadataStore` sibling.
+- **D1 schema migrations directory (`packages/persistence/migrations/`).** Shipped in Phase D as `0001_init.sql` plus a README pointing operators at `wrangler d1 migrations apply basis-vol-lab-meta --remote`.
+- **R2 artifact backend in `basis_api`.** Shipped in Phase D — `R2ArtifactStore` lives in `apps/api/src/basis_api/storage.py` and `store_from_env()` activates it whenever `BASIS_ARTIFACT_BACKEND=r2` (Terraform auto-flips this when the operator pastes the R2 keys into the TFC workspace).
+- **`D1MetadataStore` runtime use in `basis_api`.** Phase D ships the
+  client + REST contract + tests, but the API service doesn't yet
+  record `CollectionRun` rows or read instrument metadata at request
+  time — the snapshot orchestrator is still stateless. Wiring this up
+  is a small follow-up; not a blocker for the cloud cutover.
 - **Pages `_redirects` rewrite for `/api/*`.** Replaced by a `VITE_API_URL` env var in the Pages deployment config — the SPA calls API Gateway cross-origin and CORS is open to the pages.dev subdomain. No `_redirects` file is shipped.
 
 ## Next
 
-→ **Step 7 — Phase D (R2/D1 wiring)**. Lambda is live but still
-reads/writes `/tmp/data`, so each cold start sees an empty artifacts
-dir until the first `POST /api/refresh` repopulates it. Phase D:
-introduce an `ArtifactStore` protocol in `basis_api.storage` with
-`LocalArtifactStore` + `R2ArtifactStore` (boto3 against the R2
-S3-compatible endpoint) implementations, switch
-`snapshot.run_snapshot` and `_load` to it, add the `D1MetadataStore`
-sibling in `basis_persistence`, ship the
-`packages/persistence/migrations/` directory, set
-`BASIS_ARTIFACT_BACKEND=r2` + `R2_*` env vars on the Lambda, and
-add the GitHub Actions `*/15` snapshot cron (Phase E in the cloud
-plan). Plan: [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
+→ **Step 7 — Phase E (scheduled snapshot via GitHub Actions)**.
+Phase D wired the Lambda to R2/D1 (Python-side); Phase E adds the
+`*/15 * * * *` `.github/workflows/snapshot.yml` cron that runs
+`python -m basis_api.snapshot` against the R2 backend so freshness
+doesn't depend on a human pressing **Refresh**. After that, Phase F
+(custom domain + Web Analytics + uptime ping) and Phase G (final
+cutover + README update) finish the deployed-demo bullet on the CV.
+Plan: [`docs/planning/8.cloud-plan.md`](planning/8.cloud-plan.md).
 
 ## Notes
 

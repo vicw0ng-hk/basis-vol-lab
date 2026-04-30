@@ -40,3 +40,22 @@ variable "lambda_image_pushed" {
   EOT
   default     = false
 }
+
+variable "r2_access_key_id" {
+  type        = string
+  description = <<-EOT
+    R2 S3-API access key ID (Cloudflare → R2 → Manage API Tokens →
+    Create API Token, scoped to "Object Read & Write" on the
+    basis-vol-lab-artifacts bucket). Set as a sensitive workspace
+    variable in HCP Terraform; consumed by the Lambda's environment.
+  EOT
+  sensitive   = true
+  default     = ""
+}
+
+variable "r2_secret_access_key" {
+  type        = string
+  description = "R2 S3-API secret access key. See r2_access_key_id."
+  sensitive   = true
+  default     = ""
+}

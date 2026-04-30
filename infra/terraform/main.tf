@@ -249,9 +249,13 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      BASIS_DATA_DIR         = "/tmp/data"
-      BASIS_CORS_ORIGINS     = local.pages_origin
-      BASIS_ARTIFACT_BACKEND = "local" # flips to "r2" in Phase D
+      BASIS_DATA_DIR             = "/tmp/data"
+      BASIS_CORS_ORIGINS         = local.pages_origin
+      BASIS_ARTIFACT_BACKEND     = var.r2_access_key_id != "" ? "r2" : "local"
+      BASIS_R2_ENDPOINT          = "https://${local.account_id}.r2.cloudflarestorage.com"
+      BASIS_R2_BUCKET            = cloudflare_r2_bucket.basis_artifacts.name
+      BASIS_R2_ACCESS_KEY_ID     = var.r2_access_key_id
+      BASIS_R2_SECRET_ACCESS_KEY = var.r2_secret_access_key
     }
   }
 

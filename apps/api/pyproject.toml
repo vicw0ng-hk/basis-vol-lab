@@ -15,6 +15,15 @@ dependencies = [
     "pandas>=2.2",
 ]
 
+[project.optional-dependencies]
+# Installed in the Lambda container image (Dockerfile.lambda) so the
+# R2 artifact backend and D1 metadata store are importable. Local dev
+# does not need either — `BASIS_ARTIFACT_BACKEND=local` is the default.
+cloud = [
+    "boto3>=1.35",
+    "basis-persistence[cloud]",
+]
+
 [tool.uv.sources]
 basis-analytics = { workspace = true }
 basis-connectors = { workspace = true }
