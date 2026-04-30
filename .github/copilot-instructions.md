@@ -42,7 +42,7 @@ This is a uv workspace monorepo. Each `packages/*` and `apps/*` directory is a w
 |---------|------|
 | Python package/project management | `uv` (always) |
 | Python virtual environment | managed by `uv` via `.venv` |
-| Non-Python tool versions | `mise` (node, terraform, wrangler, awscli, etc.) |
+| Non-Python tool versions | `mise` (node, terraform, awscli, etc.) |
 | Project tasks (lint, test, build) | `mise` tasks or `uv run` |
 | Web framework | Vite + React 18 + TypeScript |
 | Web styling | Tailwind CSS v4 (CSS-variables, `.dark` class) |

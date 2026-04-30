@@ -72,7 +72,7 @@ Prerequisites:
 # Install Python deps and create the .venv
 uv sync
 
-# Install pinned non-Python tools (node, terraform, wrangler)
+# Install pinned non-Python tools (node, terraform)
 mise install
 
 # Install pre-commit hooks

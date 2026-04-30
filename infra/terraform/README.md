@@ -70,11 +70,9 @@ the Lambda env (Phase C) and the GitHub Actions secrets store
 
 ## Open follow-ups (Phase B leftovers)
 
-- **D1 schema migrations.** A `packages/persistence/migrations/` folder
-  with the `instruments` + `collection_runs` DDL extracted from
-  `MetadataStore` is still TODO; it will be applied via
-  `wrangler d1 migrations apply ${var.project_name}-meta` once the
-  `D1MetadataStore` sibling lands in Phase D.
+- **D1 schema migrations.** Shipped in Phase D under
+  `packages/persistence/migrations/`; apply with `mise run d1:migrate`
+  (curl against the D1 REST API, requires `CLOUDFLARE_API_TOKEN`).
 - **Pages → GitHub link.** The `cloudflare_pages_project.basis_web` resource
   assumes the Cloudflare account already has the
   `vicw0ng-hk/basis-vol-lab` GitHub installation authorised for Pages.

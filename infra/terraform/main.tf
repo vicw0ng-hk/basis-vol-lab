@@ -67,8 +67,9 @@ resource "cloudflare_r2_bucket_lifecycle" "basis_artifacts" {
 #
 # Holds the same `instruments` and `collection_runs` tables that
 # `MetadataStore` produces locally (D1 is SQLite under the hood). Schema
-# migrations are applied separately via `wrangler d1 migrations apply`
-# from `packages/persistence/migrations/` once that directory exists.
+# migrations are applied separately via `mise run d1:migrate`
+# (curl against the D1 REST API) from
+# `packages/persistence/migrations/`.
 
 resource "cloudflare_d1_database" "basis_meta" {
   account_id            = local.account_id

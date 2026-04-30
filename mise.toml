@@ -8,7 +8,6 @@ BASIS_LAMBDA_FN  = "basis-vol-lab-api"
 node = "24"
 python = "3.14"
 terraform = "1.15"
-wrangler = "latest"
 
 [settings]
 python.uv_venv_auto = "create|source"
@@ -156,19 +155,27 @@ echo "lambda updated: $BASIS_LAMBDA_FN"
 
 # ── Cloudflare D1 schema migrations ────────────────────────────────────
 #
-# `D1MetadataStore` (Python) talks to the D1 REST API at runtime, but
-# schema changes go through wrangler so D1's own migration table stays
-# in sync. Both tasks need `CLOUDFLARE_API_TOKEN` exported with at
-# least the `D1:Edit` scope on the project account. The wrangler.toml
-# lives at `packages/persistence/wrangler.toml` and pins the production
-# database UUID surfaced by `terraform output d1_database_id`.
+# `D1MetadataStore` (Python) talks to the D1 REST API at runtime; schema
+# DDL is idempotent (`CREATE TABLE IF NOT EXISTS`), so we apply it via
+# the same REST endpoint instead of pulling in `wrangler` + a
+# `wrangler.toml`. Needs `CLOUDFLARE_API_TOKEN` exported with the
+# `D1:Edit` scope; account + database IDs come from `terraform output`.
 
 [tasks."d1:migrate"]
-description = "Apply pending D1 schema migrations to basis-vol-lab-meta"
-dir = "packages/persistence"
-run = "wrangler d1 migrations apply basis-vol-lab-meta --remote"
-
-[tasks."d1:migrate:list"]
-description = "List applied + pending D1 migrations"
-dir = "packages/persistence"
-run = "wrangler d1 migrations list basis-vol-lab-meta --remote"
+description = "Apply packages/persistence/migrations/*.sql to the production D1 database"
+run = """
+set -eu
+: "${CLOUDFLARE_API_TOKEN:?must be set with D1:Edit scope}"
+ACCOUNT_ID=$(terraform -chdir=infra/terraform output -raw cloudflare_account_id)
+DB_ID=$(terraform -chdir=infra/terraform output -raw d1_database_id)
+for f in packages/persistence/migrations/*.sql; do
+    echo "applying $f"
+    SQL=$(jq -Rs . < "$f")
+    curl -fsS -X POST \\
+        "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/d1/database/$DB_ID/query" \\
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \\
+        -H "Content-Type: application/json" \\
+        --data "{\\"sql\\": $SQL}" \\
+        | jq '{success, errors}'
+done
+"""

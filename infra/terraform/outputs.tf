@@ -23,7 +23,7 @@ output "r2_endpoint_url" {
 }
 
 output "d1_database_id" {
-  description = "UUID of the D1 metadata database. Wire into wrangler.toml + Lambda env."
+  description = "UUID of the D1 metadata database. Used by `mise run d1:migrate` + Lambda env."
   value       = cloudflare_d1_database.basis_meta.id
 }
 
