@@ -54,8 +54,10 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchor `lib/` and `lib64/` to the repo root so they don't match
+# `apps/web/src/lib/` (front-end utility modules).
+/lib/
+/lib64/
 parts/
 sdist/
 var/
