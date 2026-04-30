@@ -126,37 +126,6 @@ class InMemoryArtifactStore:
         self.parquet_blobs[key] = bytes(data)
 
 
-def _r2_strip_checksum_headers(request: Any, **_: Any) -> None:
-    """Remove flexible-checksum headers that R2 cannot verify.
-
-    boto3 ≥ 1.36 adds ``x-amz-sdk-checksum-algorithm`` and an
-    ``aws-chunked`` ``content-encoding`` to ``PutObject`` calls by
-    default. Cloudflare R2 signs requests using the **literal** payload
-    SHA-256 — not the streaming-trailer variant AWS S3 expects — and
-    returns ``SignatureDoesNotMatch`` whenever those headers are
-    present. We drop them before SigV4 signs the request.
-
-    Registered on the ``before-sign.s3.*`` event hook in
-    :class:`R2ArtifactStore`.
-    """
-    headers = request.headers
-    for name in list(headers):
-        lower = name.lower()
-        if lower.startswith("x-amz-checksum-") or lower in (
-            "x-amz-sdk-checksum-algorithm",
-            "x-amz-trailer",
-        ):
-            del headers[name]
-    encoding = headers.get("Content-Encoding")
-    if encoding and "aws-chunked" in encoding:
-        remaining = ",".join(
-            part for part in encoding.split(",") if "aws-chunked" not in part
-        ).strip(", ")
-        del headers["Content-Encoding"]
-        if remaining:
-            headers["Content-Encoding"] = remaining
-
-
 class R2ArtifactStore:
     """Cloudflare R2 backend over the S3-compatible API.
 
@@ -195,29 +164,16 @@ class R2ArtifactStore:
             aws_access_key_id=access_key,
             aws_secret_access_key=secret,
             region_name=region,
-            # R2 quirks:
-            #   • SigV4 + path-style addressing (R2 docs).
-            #   • Disable boto3 ≥ 1.36 "default integrity protections" —
-            #     they add `x-amz-checksum-crc32` + STREAMING-…-TRAILER
-            #     content-encoding to every PutObject, which R2 signs
-            #     differently than AWS S3 and rejects with
-            #     `SignatureDoesNotMatch`. See boto3#4392. Setting both
-            #     checksum knobs to `when_required` restores the legacy
-            #     signing path.
+            # R2 needs SigV4 + path-style addressing (per Cloudflare R2
+            # docs). We deliberately pin `boto3<1.36` in the `cloud`
+            # extra to avoid the flexible-checksum defaults that ≥ 1.36
+            # added — those wrap PutObject in an `aws-chunked` body
+            # framing that R2 signs differently than AWS S3 and rejects
+            # with `SignatureDoesNotMatch`. See boto3#4392.
             config=Config(
                 signature_version="s3v4",
                 s3={"addressing_style": "path"},
-                request_checksum_calculation="when_required",
-                response_checksum_validation="when_required",
             ),
-        )
-        # Belt-and-suspenders: even with `when_required`, some boto3
-        # ≥ 1.36 builds still inject `x-amz-sdk-checksum-algorithm`
-        # and/or an `aws-chunked` content-encoding for `PutObject`,
-        # which R2 rejects as `SignatureDoesNotMatch`. Strip them
-        # before SigV4 signs the request.
-        self._client.meta.events.register(
-            "before-sign.s3.*", _r2_strip_checksum_headers
         )
 
     def _full_key(self, suffix: str) -> str:

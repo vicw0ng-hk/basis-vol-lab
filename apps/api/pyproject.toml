@@ -20,12 +20,16 @@ dependencies = [
 # R2 artifact backend and D1 metadata store are importable. Local dev
 # does not need either — `BASIS_ARTIFACT_BACKEND=local` is the default.
 cloud = [
-    # boto3 ≥ 1.36 introduced the `request_checksum_calculation` /
-    # `response_checksum_validation` Config knobs we need to disable
-    # default integrity protections against Cloudflare R2 (which signs
-    # the new CRC32 checksum trailers differently than AWS S3 and would
-    # otherwise reject every PutObject with SignatureDoesNotMatch).
-    "boto3>=1.36",
+    # Pin boto3 below 1.36. boto3 ≥ 1.36 enables "default integrity
+    # protections" (flexible checksums) that wrap PutObject bodies in
+    # an `aws-chunked` STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER
+    # framing and add `x-amz-checksum-*` headers. Cloudflare R2 signs
+    # using the literal payload SHA-256 and rejects the chunked body
+    # with `SignatureDoesNotMatch`. The `Config(request_checksum_*)`
+    # / before-sign hooks only strip headers — the body itself is
+    # already chunked by then. Pinning to 1.35.x is the only fix that
+    # works end-to-end. See boto3#4392.
+    "boto3>=1.34,<1.36",
     "basis-persistence[cloud]",
 ]
 
