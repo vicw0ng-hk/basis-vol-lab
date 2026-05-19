@@ -26,6 +26,7 @@ tests                 Pytest suite
 
 - Use `uv` for Python dependency and environment management.
 - Use `mise` for project tasks and non-Python tool versions.
+- Use `bun` as the JavaScript runtime and package manager.
 - Use `asyncio` for network I/O.
 - Use NumPy/Pandas vectorization for analytics work.
 - Keep cloud choices inside free tiers.
@@ -35,7 +36,7 @@ Common commands:
 ```bash
 uvx ruff format .
 uvx ruff check . --fix
-uvx pyright
+uvx ty check
 uv run pytest
 mise run check
 ```
@@ -63,7 +64,7 @@ Run, in order:
 
 1. `uvx ruff format .`
 2. `uvx ruff check . --fix`
-3. `uvx pyright`
+3. `uvx ty check`
 4. `uv run pytest`
 
 `mise run check` runs the same project-level checks plus Terraform format and

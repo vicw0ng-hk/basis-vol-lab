@@ -219,7 +219,7 @@ class D1MetadataStore:
             CollectionRun(
                 run_id=r["run_id"],
                 venue=Venue(r["venue"]),
-                started_at=_text_to_ts(r["started_at"]),  # type: ignore[arg-type]
+                started_at=_text_to_ts(r["started_at"]),  # type: ignore[ty:invalid-argument-type]
                 ended_at=_text_to_ts(r["ended_at"]),
                 status=r["status"],
                 records_collected=r["records_collected"],

@@ -53,10 +53,8 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N"]
 "tests/test_greeks.py" = ["N803", "N806"]
 "tests/test_validation.py" = ["N803", "N806"]
 
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
-pythonVersion = "3.14"
+[tool.ty.environment]
+python-version = "3.14"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

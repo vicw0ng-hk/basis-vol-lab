@@ -28,8 +28,8 @@ jobs:
       - name: Install workspace
         run: uv sync
 
-      - name: Run pyright
-        run: uvx pyright
+      - name: Run ty
+        run: uvx ty check
 
   test:
     name: pytest

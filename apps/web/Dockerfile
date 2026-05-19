@@ -6,11 +6,11 @@
 # the Learn page imports those .md files at build time via Vite's
 # `import.meta.glob('?raw')`.
 # --------------------------------------------------------------------
-FROM node:24-alpine AS builder
+FROM oven/bun:1.3-alpine AS builder
 WORKDIR /app
 
-COPY apps/web/package.json apps/web/package-lock.json* ./
-RUN npm ci
+COPY apps/web/package.json apps/web/bun.lock* ./
+RUN bun install --frozen-lockfile
 
 COPY apps/web/tsconfig.json apps/web/vite.config.ts apps/web/index.html ./
 COPY apps/web/public ./public
@@ -20,7 +20,7 @@ COPY apps/web/src ./src
 # in dev and in the container build.
 COPY docs/analytics /docs/analytics
 
-RUN npm run build
+RUN bun run build
 
 # --------------------------------------------------------------------
 # Runtime stage: nginx serving static dist/

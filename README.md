@@ -86,7 +86,7 @@ Web: <http://localhost:5173>. API: <http://localhost:8000>.
 ```bash
 uvx ruff format .
 uvx ruff check . --fix
-uvx pyright
+uvx ty check
 uv run pytest
 mise run check
 

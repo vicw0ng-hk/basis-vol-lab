@@ -190,7 +190,7 @@ class MetadataStore:
             CollectionRun(
                 run_id=r[0],
                 venue=Venue(r[1]),
-                started_at=_text_to_ts(r[2]),  # type: ignore[arg-type]
+                started_at=_text_to_ts(r[2]),  # type: ignore[ty:invalid-argument-type]
                 ended_at=_text_to_ts(r[3]),
                 status=r[4],
                 records_collected=r[5],

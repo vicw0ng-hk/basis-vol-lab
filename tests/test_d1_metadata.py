@@ -55,7 +55,7 @@ def store(captured: list[dict[str, Any]]) -> D1MetadataStore:
         api_token="token-xyz",
         client=client,
     )
-    store._pending = pending  # type: ignore[attr-defined]
+    store._pending = pending  # type: ignore[ty:unresolved-attribute]
     return store
 
 
@@ -89,7 +89,7 @@ class TestGetInstruments:
     def test_filters_compose_to_where_clause(
         self, store: D1MetadataStore, captured: list[dict[str, Any]]
     ) -> None:
-        store._pending.append(  # type: ignore[attr-defined]
+        store._pending.append(  # type: ignore[ty:unresolved-attribute]
             [
                 {
                     "venue": "deribit",
