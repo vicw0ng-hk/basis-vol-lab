@@ -101,8 +101,12 @@ class R2ArtifactStore:
     ) -> None:
         # Keep boto3 out of local installs unless the cloud extra is present.
         try:
-            import boto3  # type: ignore[import-not-found]
-            from botocore.config import Config  # type: ignore[import-not-found]
+            # isort: off
+            # fmt: off
+            import boto3  # type: ignore[import-not-found]  # ty: ignore[unresolved-import]
+            from botocore.config import Config  # type: ignore[import-not-found]  # ty: ignore[unresolved-import]
+            # fmt: on
+            # isort: on
         except ImportError as exc:  # pragma: no cover - exercised in cloud only
             raise ImportError(
                 "R2ArtifactStore requires boto3. Install with "

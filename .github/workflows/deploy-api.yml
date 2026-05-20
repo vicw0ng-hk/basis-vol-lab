@@ -54,6 +54,7 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: ${{ env.ECR_URL }}:latest
+          provenance: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

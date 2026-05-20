@@ -52,8 +52,9 @@ Deribit/Binance -> connectors -> contracts -> persistence
 
 ## Local Run
 
-Prerequisites: [`uv`](https://docs.astral.sh/uv/) and
-[`mise`](https://mise.jdx.dev/).
+Prerequisites: [`uv`](https://docs.astral.sh/uv/),
+[`mise`](https://mise.jdx.dev/), and
+[`bun`](https://bun.sh/) (JavaScript runtime for `apps/web`).
 
 ```bash
 uv sync

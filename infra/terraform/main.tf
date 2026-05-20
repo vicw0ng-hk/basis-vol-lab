@@ -112,7 +112,7 @@ resource "cloudflare_pages_project" "basis_web" {
   # member; it has no runtime deps and `pip install .` is a near-no-op.
   build_config = {
     build_caching   = true
-    build_command   = "npm ci && npm run build"
+    build_command   = "bun install --frozen-lockfile && bun run build"
     destination_dir = "dist"
     root_dir        = "apps/web"
   }
