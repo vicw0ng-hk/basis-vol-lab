@@ -20,6 +20,7 @@ jobs:
       BASIS_R2_BUCKET: ${{ secrets.BASIS_R2_BUCKET }}
       BASIS_R2_ACCESS_KEY_ID: ${{ secrets.BASIS_R2_ACCESS_KEY_ID }}
       BASIS_R2_SECRET_ACCESS_KEY: ${{ secrets.BASIS_R2_SECRET_ACCESS_KEY }}
+      BASIS_PROXY_URLS: ${{ secrets.BASIS_PROXY_URLS }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6

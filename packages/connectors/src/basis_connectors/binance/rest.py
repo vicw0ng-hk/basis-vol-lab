@@ -37,10 +37,11 @@ class BinanceRestClient:
         base_url: str = DEFAULT_BASE_URL,
         client: httpx.AsyncClient | None = None,
         timeout: float = 10.0,
+        proxy: str | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._owns_client = client is None
-        self._client = client or httpx.AsyncClient(timeout=timeout)
+        self._client = client or httpx.AsyncClient(timeout=timeout, proxy=proxy)
 
     async def __aenter__(self) -> Self:
         return self

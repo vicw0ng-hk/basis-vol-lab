@@ -24,7 +24,8 @@ curated artifacts and Parquet snapshots, and D1 is provisioned for metadata.
 ## Known Limits
 
 - GitHub-hosted runners are US-based, so Binance Futures pulls can return
-  HTTP 451 in the scheduled snapshot. Deribit data still refreshes.
+  HTTP 451 without a proxy. Set the `BASIS_PROXY_URLS` secret to route
+  Binance traffic through an allowed region (e.g. Japan).
 - Rolling-percentile signals need more accumulated history before replacing
   the current snapshot-level signal view.
 - Historical replay, Greek validation reporting, and D1-backed run metadata

@@ -17,6 +17,7 @@ from basis_analytics.carry import annualized_carry, annualized_funding
 from basis_analytics.surface import atm_term_structure
 from basis_connectors.binance import BinanceRestClient
 from basis_connectors.deribit.parsers import parse_instrument_name
+from basis_connectors.proxy import get_proxy_url
 from basis_contracts import (
     AssetKind,
     TickerSnapshot,
@@ -133,7 +134,7 @@ async def _pull_binance(symbols: Iterable[str]) -> _BinanceData:
     basis: dict[str, list[dict[str, Any]]] = {}
     oi: dict[str, list[dict[str, Any]]] = {}
 
-    async with BinanceRestClient() as client:
+    async with BinanceRestClient(proxy=get_proxy_url()) as client:
         for sym in symbols:
             pair = sym  # USDT-M: pair == symbol.
 
