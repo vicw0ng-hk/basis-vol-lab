@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+// Global refresh signal: all useArtifact hooks re-fetch when this fires.
+const REFRESH_EVENT = 'basis:refresh';
+
+function emitGlobalRefresh() {
+  window.dispatchEvent(new Event(REFRESH_EVENT));
+}
 
 export type Meta = {
   generated_at: string;
@@ -128,6 +135,15 @@ export function useArtifact<T>(path: string, deps: unknown[] = []): FetchState<T
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
+  // Listen for global refresh events (triggered by the header refresh button).
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  useEffect(() => {
+    const handler = () => refreshRef.current();
+    window.addEventListener(REFRESH_EVENT, handler);
+    return () => window.removeEventListener(REFRESH_EVENT, handler);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -157,5 +173,8 @@ export async function triggerRefresh(): Promise<Meta> {
   const url = API_BASE ? `${API_BASE}/api/refresh` : '/api/refresh';
   const res = await fetch(url, { method: 'POST' });
   if (!res.ok) throw new Error(`refresh failed: HTTP ${res.status}`);
-  return res.json() as Promise<Meta>;
+  const meta = (await res.json()) as Meta;
+  // Signal all useArtifact hooks to re-fetch.
+  emitGlobalRefresh();
+  return meta;
 }

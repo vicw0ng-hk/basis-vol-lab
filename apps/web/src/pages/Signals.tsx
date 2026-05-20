@@ -1,8 +1,17 @@
-import { Info } from 'lucide-react';
 import { Card, Stat } from '../components/Card';
 import { PageState } from '../components/PageState';
 import { useArtifact, type Signals } from '../lib/api';
 import { formatPercent } from '../lib/format';
+
+function InfoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-[color:var(--warning)]">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
 
 export default function SignalsPage() {
   const { data, error, loading } = useArtifact<Signals>('/api/signals');
@@ -26,10 +35,7 @@ export default function SignalsPage() {
           <>
             {data.as_of_snapshot && (
               <div className="flex items-start gap-3 rounded-lg border border-[color:var(--warning)]/40 bg-[color:var(--warning)]/10 p-4 text-sm">
-                <Info
-                  size={16}
-                  className="mt-0.5 shrink-0 text-[color:var(--warning)]"
-                />
+                <InfoIcon />
                 <div>
                   <div className="font-semibold mb-0.5">
                     Snapshot mode — limited history

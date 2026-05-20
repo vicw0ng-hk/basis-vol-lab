@@ -56,7 +56,7 @@ export function Stat({
       <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
-      <span className={`font-mono text-xl tabular-nums ${toneClass}`}>{value}</span>
+      <span className={`font-mono text-lg tabular-nums sm:text-xl ${toneClass}`}>{value}</span>
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>
   );
