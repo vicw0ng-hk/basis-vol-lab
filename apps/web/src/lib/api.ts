@@ -92,8 +92,15 @@ export type Signals = {
 
 async function getJson<T>(path: string): Promise<T> {
   const url = API_BASE ? `${API_BASE}${path}` : path;
-  const res = await fetch(url);
-  if (!res.ok) {
+  const maxRetries = 4;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url);
+    if (res.ok) return res.json() as Promise<T>;
+    // Retry on 502/503/504 (cold-start / transient errors)
+    if (attempt < maxRetries && res.status >= 502 && res.status <= 504) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      continue;
+    }
     let detail: string | undefined;
     try {
       detail = (await res.json())?.detail;
@@ -102,7 +109,7 @@ async function getJson<T>(path: string): Promise<T> {
     }
     throw new Error(detail ?? `HTTP ${res.status} from ${path}`);
   }
-  return res.json() as Promise<T>;
+  throw new Error(`Failed to fetch ${path} after ${maxRetries + 1} attempts`);
 }
 
 export type FetchState<T> = {

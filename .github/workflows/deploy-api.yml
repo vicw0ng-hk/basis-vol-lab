@@ -53,7 +53,7 @@ jobs:
           file: apps/api/Dockerfile.lambda
           platforms: linux/arm64
           push: true
-          tags: ${{ env.ECR_URL }}:latest
+          tags: ${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPO }}:latest
           provenance: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -72,3 +72,17 @@ jobs:
             --function-name "$LAMBDA_FN" \
             --region "$AWS_REGION"
           echo "✓ Lambda active"
+
+      - name: Publish version and update alias
+        run: |
+          VERSION=$(aws lambda publish-version \
+            --function-name "$LAMBDA_FN" \
+            --region "$AWS_REGION" \
+            --query 'Version' --output text)
+          echo "✓ Published version: $VERSION"
+          aws lambda update-alias \
+            --function-name "$LAMBDA_FN" \
+            --name live \
+            --function-version "$VERSION" \
+            --region "$AWS_REGION" > /dev/null
+          echo "✓ Alias 'live' → v$VERSION"

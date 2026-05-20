@@ -250,6 +250,7 @@ resource "aws_lambda_function" "api" {
   architectures = ["arm64"]
   memory_size   = 1024
   timeout       = 30
+  publish       = true
 
   ephemeral_storage {
     size = 1024
@@ -277,6 +278,26 @@ resource "aws_lambda_function" "api" {
   ]
 }
 
+resource "aws_lambda_alias" "live" {
+  count = var.lambda_image_pushed ? 1 : 0
+
+  name             = "live"
+  function_name    = aws_lambda_function.api[0].function_name
+  function_version = aws_lambda_function.api[0].version
+
+  lifecycle {
+    ignore_changes = [function_version]
+  }
+}
+
+resource "aws_lambda_provisioned_concurrency_config" "api" {
+  count = var.lambda_image_pushed ? 1 : 0
+
+  function_name                     = aws_lambda_function.api[0].function_name
+  qualifier                         = aws_lambda_alias.live[0].name
+  provisioned_concurrent_executions = 1
+}
+
 resource "aws_apigatewayv2_api" "basis_api" {
   count = var.lambda_image_pushed ? 1 : 0
 
@@ -296,7 +317,7 @@ resource "aws_apigatewayv2_integration" "basis_api" {
 
   api_id                 = aws_apigatewayv2_api.basis_api[0].id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.api[0].invoke_arn
+  integration_uri        = aws_lambda_alias.live[0].invoke_arn
   payload_format_version = "2.0"
 }
 
@@ -322,6 +343,7 @@ resource "aws_lambda_permission" "apigw" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.api[0].function_name
+  qualifier     = aws_lambda_alias.live[0].name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.basis_api[0].execution_arn}/*/*"
 }
