@@ -290,14 +290,6 @@ resource "aws_lambda_alias" "live" {
   }
 }
 
-resource "aws_lambda_provisioned_concurrency_config" "api" {
-  count = var.lambda_image_pushed ? 1 : 0
-
-  function_name                     = aws_lambda_function.api[0].function_name
-  qualifier                         = aws_lambda_alias.live[0].name
-  provisioned_concurrent_executions = 1
-}
-
 resource "aws_apigatewayv2_api" "basis_api" {
   count = var.lambda_image_pushed ? 1 : 0
 
