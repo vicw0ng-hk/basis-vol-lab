@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { triggerRefresh, useArtifact, type Meta } from '../lib/api';
 import { formatRelative } from '../lib/format';
 import { ThemeToggle } from './ThemeToggle';
+
+const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+const TICK_MS = 10_000; // update relative timestamp every 10s
+const LS_AUTO_REFRESH = 'basis:auto-refresh';
 
 const NAV = [
   { to: '/', label: 'Overview', end: true },
@@ -54,6 +58,59 @@ export function Header() {
   const meta = useArtifact<Meta>('/api/meta');
   const [refreshing, setRefreshing] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [, setNow] = useState(Date.now()); // tick to update relative time
+  const [autoRefresh, setAutoRefresh] = useState(() => {
+    const stored = localStorage.getItem(LS_AUTO_REFRESH);
+    return stored === null ? true : stored === '1';
+  });
+  const autoRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoRefreshRef = useRef(autoRefresh);
+  autoRefreshRef.current = autoRefresh;
+
+  // Tick every 30s so the relative timestamp stays current.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), TICK_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  // Schedule the next auto-refresh, resetting any pending timer.
+  const scheduleAutoRefresh = () => {
+    if (autoRefreshTimer.current) clearTimeout(autoRefreshTimer.current);
+    if (!autoRefreshRef.current) return;
+    autoRefreshTimer.current = setTimeout(doAutoRefresh, AUTO_REFRESH_MS);
+  };
+
+  const doAutoRefresh = async () => {
+    if (!autoRefreshRef.current) return;
+    try {
+      await triggerRefresh();
+    } catch (e) {
+      console.error('auto-refresh failed', e);
+    }
+    scheduleAutoRefresh();
+  };
+
+  // Restart or stop auto-refresh cycle when toggle changes.
+  useEffect(() => {
+    if (autoRefresh) {
+      scheduleAutoRefresh();
+    } else if (autoRefreshTimer.current) {
+      clearTimeout(autoRefreshTimer.current);
+      autoRefreshTimer.current = null;
+    }
+    return () => {
+      if (autoRefreshTimer.current) clearTimeout(autoRefreshTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh]);
+
+  const toggleAutoRefresh = () => {
+    setAutoRefresh((prev) => {
+      const next = !prev;
+      localStorage.setItem(LS_AUTO_REFRESH, next ? '1' : '0');
+      return next;
+    });
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -64,6 +121,8 @@ export function Header() {
     } finally {
       setRefreshing(false);
     }
+    // Reset auto-refresh timer after manual refresh.
+    scheduleAutoRefresh();
   };
 
   return (
@@ -111,6 +170,25 @@ export function Header() {
           >
             <RefreshIcon className={refreshing ? 'animate-spin' : undefined} />
             <span className="hidden sm:inline">Refresh</span>
+          </button>
+          <button
+            type="button"
+            onClick={toggleAutoRefresh}
+            title={autoRefresh ? 'Auto-refresh on (5 min)' : 'Auto-refresh off'}
+            className={
+              'hidden sm:inline-flex items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ' +
+              (autoRefresh
+                ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                : 'border-border bg-card text-muted-foreground hover:bg-accent')
+            }
+          >
+            <span className="relative flex h-2 w-2">
+              {autoRefresh && (
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-50" />
+              )}
+              <span className={'relative inline-flex h-2 w-2 rounded-full ' + (autoRefresh ? 'bg-primary' : 'bg-muted-foreground/40')} />
+            </span>
+            Auto
           </button>
           <ThemeToggle />
           {/* Mobile menu toggle */}

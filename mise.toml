@@ -84,11 +84,11 @@ run = "bun run build"
 
 [tasks."compose:up"]
 description = "Start the API + web stack via Docker Compose (works with OrbStack)"
-run = "docker compose up --build"
+run = "docker compose -f infra/docker/compose.yaml up --build"
 
 [tasks."compose:down"]
 description = "Stop the Docker Compose stack"
-run = "docker compose down"
+run = "docker compose -f infra/docker/compose.yaml down"
 
 # Lambda image tasks need local AWS credentials and Docker buildx.
 

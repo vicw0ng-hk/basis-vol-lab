@@ -74,7 +74,7 @@ mise run web:dev
 Open <http://localhost:5173>. The Vite dev server proxies `/api` to
 `localhost:8000`, and the header Refresh button calls `POST /api/refresh`.
 
-Run the same shape through Docker Compose:
+Run the same shape through Docker Compose (config lives in `infra/docker/`):
 
 ```bash
 mise run compose:up

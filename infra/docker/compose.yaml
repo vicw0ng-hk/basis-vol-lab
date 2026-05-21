@@ -1,8 +1,9 @@
 # Local API + web stack. Both services share ./data.
+# Run from repo root: docker compose -f infra/docker/compose.yaml up
 services:
   api:
     build:
-      context: .
+      context: ../..
       dockerfile: apps/api/Dockerfile
     image: basis-vol-lab-api:dev
     container_name: basis-api
@@ -12,7 +13,7 @@ services:
       BASIS_DATA_DIR: /app/data
       BASIS_CORS_ORIGINS: "*"
     volumes:
-      - ./data:/app/data
+      - ../../data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz', timeout=3).status == 200 else 1)"]
@@ -22,7 +23,7 @@ services:
 
   web:
     build:
-      context: .
+      context: ../..
       dockerfile: apps/web/Dockerfile
     image: basis-vol-lab-web:dev
     container_name: basis-web
