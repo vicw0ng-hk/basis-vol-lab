@@ -13,6 +13,11 @@ import { useArtifact, type Vol } from '../lib/api';
 import { formatPercent } from '../lib/format';
 import { useTheme } from '../lib/theme';
 
+/** Vol data is incomplete if no currency entries are present. */
+function isVolComplete(data: Vol): boolean {
+  return Object.keys(data.by_currency).length > 0;
+}
+
 function chartTokens(isDark: boolean) {
   return {
     grid: isDark ? 'oklch(0.28 0.02 250)' : 'oklch(0.92 0.005 240)',
@@ -25,7 +30,9 @@ function chartTokens(isDark: boolean) {
 }
 
 export default function VolPage() {
-  const { data, error, loading } = useArtifact<Vol>('/api/vol');
+  const { data, error, loading } = useArtifact<Vol>('/api/vol', {
+    validate: isVolComplete,
+  });
   const { theme } = useTheme();
   const tokens = chartTokens(theme === 'dark');
 
