@@ -1,0 +1,6 @@
+[project]
+name = "basis-contracts"
+version = "0.1.0"
+description = "Data models, schemas, and enums"
+requires-python = ">=3.14"
+dependencies = []

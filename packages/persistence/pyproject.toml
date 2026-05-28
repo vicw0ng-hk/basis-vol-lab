@@ -1,0 +1,17 @@
+[project]
+name = "basis-persistence"
+version = "0.1.0"
+description = "SQLite/D1 metadata and Parquet/R2 time-series storage"
+requires-python = ">=3.14"
+dependencies = [
+    "basis-contracts",
+    "pyarrow>=20.0",
+]
+
+[project.optional-dependencies]
+# `D1MetadataStore` talks to the Cloudflare D1 REST API via httpx.
+# Local development uses the SQLite path and does not need this.
+cloud = ["httpx>=0.27"]
+
+[tool.uv.sources]
+basis-contracts = { workspace = true }

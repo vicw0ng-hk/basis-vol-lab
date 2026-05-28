@@ -1,0 +1,167 @@
+[env]
+_.python.venv = { path = ".venv" }
+BASIS_AWS_REGION = "ap-east-1"
+BASIS_ECR_REPO   = "basis-vol-lab/api"
+BASIS_LAMBDA_FN  = "basis-vol-lab-api"
+
+[tools]
+bun = "1.3"
+terraform = "1.15"
+
+[tasks.format]
+description = "Format code with ruff"
+run = "uvx ruff format ."
+
+[tasks.lint]
+description = "Lint code with ruff"
+run = "uvx ruff check . --fix"
+
+[tasks.typecheck]
+description = "Type-check with ty"
+run = "uvx ty check"
+
+[tasks.test]
+description = "Run tests with pytest"
+run = "uv run pytest"
+
+[tasks.check]
+description = "Run format, lint, typecheck, test, and terraform fmt+validate"
+depends = ["format", "lint", "typecheck", "test", "web:format", "web:lint", "web:typecheck", "tf:fmt", "tf:validate"]
+
+[tasks."tf:fmt"]
+description = "Format Terraform files under infra/terraform"
+run = "terraform -chdir=infra/terraform fmt -recursive"
+
+[tasks."tf:validate"]
+description = "Validate the Terraform skeleton (no backend init required)"
+run = """
+terraform -chdir=infra/terraform init -backend=false -input=false
+terraform -chdir=infra/terraform validate
+"""
+
+[tasks.deploy]
+description = "Show the HCP Terraform deployment link"
+run = """
+echo "Infra is deployed by HCP Terraform on push to master."
+echo "Plans: https://app.terraform.io/app/vsh852/workspaces/basis-vol-lab/runs"
+echo "Approve there; do not run terraform apply locally."
+"""
+
+[tasks.collect]
+description = "Smoke-run the Deribit collector (BTC, prints a few tickers)"
+run = "uv run python -m basis_connectors.deribit --currency BTC --limit 5"
+
+[tasks."collect:binance"]
+description = "Smoke-run the Binance collector against live prod fstream"
+run = "uv run python -m basis_connectors.binance --symbols BTCUSDT ETHUSDT --limit 10"
+
+[tasks.validate]
+description = "Run the IV-validation report against live Deribit"
+run = "uv run python -m basis_analytics --currency BTC"
+
+[tasks.snapshot]
+description = "Pull one Deribit + Binance snapshot and write curated JSON artifacts under data/"
+run = "uv run python -m basis_api.snapshot --data-dir data"
+
+[tasks.api]
+description = "Run the FastAPI service (uvicorn) on :8000"
+run = "uv run python -m basis_api --reload"
+
+[tasks."web:install"]
+description = "Install web (Vite/React) dependencies"
+dir = "apps/web"
+run = "bun install"
+
+[tasks."web:format"]
+description = "Format TypeScript/React code with Biome"
+dir = "apps/web"
+run = "bun biome format --write src/"
+
+[tasks."web:lint"]
+description = "Lint TypeScript/React code with Biome"
+dir = "apps/web"
+run = "bun biome check --write src/"
+
+[tasks."web:typecheck"]
+description = "Type-check the web app with tsc"
+dir = "apps/web"
+run = "bun run typecheck"
+
+[tasks."web:dev"]
+description = "Run the Vite dev server (proxies /api to localhost:8000)"
+dir = "apps/web"
+run = "bun run dev"
+
+[tasks."build:web"]
+description = "Build the static web bundle (apps/web/dist)"
+dir = "apps/web"
+run = "bun run build"
+
+[tasks."compose:up"]
+description = "Start the API + web stack via Docker Compose (works with OrbStack)"
+run = "docker compose -f infra/docker/compose.yaml up --build"
+
+[tasks."compose:down"]
+description = "Stop the Docker Compose stack"
+run = "docker compose -f infra/docker/compose.yaml down"
+
+# Lambda image tasks need local AWS credentials and Docker buildx.
+
+[tasks."lambda:build"]
+description = "Build the Lambda container image (arm64) for apps/api"
+run = """
+set -e
+ACCT=$(aws sts get-caller-identity --query Account --output text)
+ECR_URL="$ACCT.dkr.ecr.$BASIS_AWS_REGION.amazonaws.com/$BASIS_ECR_REPO"
+docker buildx build \\
+    --platform=linux/arm64 \\
+    -f apps/api/Dockerfile.lambda \\
+    -t "$ECR_URL:latest" \\
+    --load .
+"""
+
+[tasks."lambda:push"]
+description = "Build and push the Lambda image to ECR"
+depends = ["lambda:build"]
+run = """
+set -e
+ACCT=$(aws sts get-caller-identity --query Account --output text)
+ECR_URL="$ACCT.dkr.ecr.$BASIS_AWS_REGION.amazonaws.com/$BASIS_ECR_REPO"
+aws ecr get-login-password --region "$BASIS_AWS_REGION" \\
+    | docker login --username AWS --password-stdin "$ACCT.dkr.ecr.$BASIS_AWS_REGION.amazonaws.com"
+docker push "$ECR_URL:latest"
+"""
+
+[tasks."lambda:update"]
+description = "Point the live Lambda at the latest ECR image"
+run = """
+set -e
+ACCT=$(aws sts get-caller-identity --query Account --output text)
+ECR_URL="$ACCT.dkr.ecr.$BASIS_AWS_REGION.amazonaws.com/$BASIS_ECR_REPO"
+aws lambda update-function-code \\
+    --function-name "$BASIS_LAMBDA_FN" \\
+    --image-uri "$ECR_URL:latest" \\
+    --region "$BASIS_AWS_REGION" >/dev/null
+echo "lambda updated: $BASIS_LAMBDA_FN"
+"""
+
+# D1 migrations use the Cloudflare REST API; export CLOUDFLARE_API_TOKEN.
+
+[tasks."d1:migrate"]
+description = "Apply packages/persistence/migrations/*.sql to the production D1 database"
+run = """
+set -eu
+: "${CLOUDFLARE_API_TOKEN:?must be set with D1:Edit scope}"
+ACCOUNT_ID=$(terraform -chdir=infra/terraform output -raw cloudflare_account_id)
+DB_ID=$(terraform -chdir=infra/terraform output -raw d1_database_id)
+for f in packages/persistence/migrations/*.sql; do
+    echo "applying $f"
+    SQL=$(jq -Rs . < "$f")
+    curl -fsS -X POST \\
+        "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/d1/database/$DB_ID/query" \\
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \\
+        -H "Content-Type: application/json" \\
+        --data "{\\"sql\\": $SQL}" \\
+        | jq '{success, errors}'
+done
+"""

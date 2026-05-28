@@ -1,0 +1,37 @@
+name: snapshot
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: snapshot
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    name: snapshot → R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASIS_ARTIFACT_BACKEND: r2
+      BASIS_R2_ENDPOINT: ${{ secrets.BASIS_R2_ENDPOINT }}
+      BASIS_R2_BUCKET: ${{ secrets.BASIS_R2_BUCKET }}
+      BASIS_R2_ACCESS_KEY_ID: ${{ secrets.BASIS_R2_ACCESS_KEY_ID }}
+      BASIS_R2_SECRET_ACCESS_KEY: ${{ secrets.BASIS_R2_SECRET_ACCESS_KEY }}
+      BASIS_PROXY_URLS: ${{ secrets.BASIS_PROXY_URLS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Install workspace (with cloud extras)
+        run: uv sync --package basis-api --extra cloud
+
+      - name: Run snapshot
+        run: uv run --package basis-api python -m basis_api.snapshot --backend r2

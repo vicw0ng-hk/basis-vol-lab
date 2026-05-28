@@ -1,0 +1,32 @@
+name: uptime
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: HTTP probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      WEB_URL: https://basis.vsh852.com
+      API_URL: ${{ secrets.BASIS_API_URL }}
+    steps:
+      - name: Probe SPA
+        run: |
+          curl --fail --silent --show-error --max-time 15 \
+              -o /dev/null -w "spa: %{http_code} in %{time_total}s\n" \
+              "$WEB_URL"
+
+      - name: Probe API /healthz
+        if: ${{ env.API_URL != '' }}
+        run: |
+          curl --fail --silent --show-error --max-time 15 \
+              -w "api: %{http_code} in %{time_total}s\n" \
+              "$API_URL/healthz"

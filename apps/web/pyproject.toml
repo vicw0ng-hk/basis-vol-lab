@@ -1,0 +1,19 @@
+[project]
+name = "basis-web"
+version = "0.1.0"
+description = "Static front end (Cloudflare Pages)"
+requires-python = ">=3.14"
+dependencies = []
+
+# This package only exists so the directory participates in the uv
+# workspace; there is no Python source to ship. Make `pip install .`
+# unambiguous so Cloudflare Pages' build-time auto dependency install
+# can't trip over setuptools auto-discovery (node_modules/, dist/,
+# public/, src/ all live alongside).
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = []
+packages = []
