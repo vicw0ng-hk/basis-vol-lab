@@ -62,6 +62,22 @@ mise run check
   limits, and next candidates only.
 - Remove build-history notes once they are no longer needed for operation.
 
+## Development Workflow
+
+Follow trunk-based development with short-lived feature branches:
+
+1. **Branch** – Create a feature branch from `master`:
+   `git checkout -b feat/<short-description>` (or `fix/`, `chore/`).
+2. **Commit** – Make small, atomic commits with conventional messages
+   (`feat:`, `fix:`, `chore:`, `docs:`). Keep each commit buildable.
+3. **Check** – Run the full check suite before pushing (see below).
+4. **Push & PR** – Push the branch and open a pull request against `master`.
+   PR title should match the conventional commit style.
+   Include a brief description of *what* and *why*.
+5. **Review** – Address feedback, keep the branch up to date with `master`
+   via rebase.
+6. **Merge** – Squash-merge into `master`; delete the branch.
+
 ## Before Finishing Code Changes
 
 Run, in order:

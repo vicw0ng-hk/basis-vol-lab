@@ -116,15 +116,32 @@ async function bootstrapRefresh(): Promise<void> {
   return _bootstrapInFlight;
 }
 
-async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+export type GetJsonOptions<T> = {
+  signal?: AbortSignal;
+  /** Return true if data is complete; false triggers a retry with backoff. */
+  validate?: (data: T) => boolean;
+};
+
+async function getJson<T>(
+  path: string,
+  options?: AbortSignal | GetJsonOptions<T>,
+): Promise<T> {
+  // Support legacy call-sites passing just a signal.
+  const opts: GetJsonOptions<T> =
+    options instanceof AbortSignal ? { signal: options } : (options ?? {});
+  const { signal, validate } = opts;
+
   const url = API_BASE ? `${API_BASE}${path}` : path;
   const INITIAL_DELAY_MS = 800;
   const MAX_DELAY_MS = 4000;
   // Trigger a bootstrap refresh after this many consecutive 503s.
   const BOOTSTRAP_AFTER = 2;
+  // Max retries for incomplete (validation-failed) responses before accepting.
+  const MAX_INCOMPLETE_RETRIES = 10;
 
   let attempt = 0;
   let consecutive503 = 0;
+  let incompleteRetries = 0;
 
   // Retry indefinitely on 502/503/504 until data is available.
   // eslint-disable-next-line no-constant-condition
@@ -132,7 +149,24 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
     const res = await fetch(url, { signal });
-    if (res.ok) return res.json() as Promise<T>;
+    if (res.ok) {
+      const data = (await res.json()) as T;
+      // If a validator is provided and the data is incomplete, retry with
+      // backoff up to a limit — then accept whatever we have.
+      if (validate && !validate(data)) {
+        incompleteRetries++;
+        if (incompleteRetries >= MAX_INCOMPLETE_RETRIES) return data;
+        // Trigger a refresh to regenerate data on the backend.
+        if (incompleteRetries === 1) await bootstrapRefresh();
+        const delay = Math.min(
+          INITIAL_DELAY_MS * incompleteRetries,
+          MAX_DELAY_MS,
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      return data;
+    }
 
     if (res.status >= 502 && res.status <= 504) {
       attempt++;
@@ -167,10 +201,22 @@ export type FetchState<T> = {
   refresh: () => void;
 };
 
+export type UseArtifactOptions<T> = {
+  deps?: unknown[];
+  /** Return true if data is complete; false triggers a retry with backoff. */
+  validate?: (data: T) => boolean;
+};
+
 export function useArtifact<T>(
   path: string,
-  deps: unknown[] = [],
+  options?: unknown[] | UseArtifactOptions<T>,
 ): FetchState<T> {
+  // Support legacy call-sites passing just deps array.
+  const opts: UseArtifactOptions<T> = Array.isArray(options)
+    ? { deps: options }
+    : (options ?? {});
+  const { deps = [], validate } = opts;
+
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -178,6 +224,10 @@ export function useArtifact<T>(
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const refresh = useCallback(() => setTick((t) => t + 1), []);
+
+  // Stable ref for validate to avoid re-triggering effects.
+  const validateRef = useRef(validate);
+  validateRef.current = validate;
 
   // Listen for global refresh events (triggered by the header refresh button).
   const refreshRef = useRef(refresh);
@@ -191,7 +241,10 @@ export function useArtifact<T>(
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    getJson<T>(path, controller.signal)
+    getJson<T>(path, {
+      signal: controller.signal,
+      validate: validateRef.current,
+    })
       .then((d) => {
         if (!controller.signal.aborted) {
           setData(d);

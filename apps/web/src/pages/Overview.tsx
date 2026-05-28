@@ -1,10 +1,24 @@
 import { Card, Stat } from '../components/Card';
 import { PageState } from '../components/PageState';
-import { type Overview, useArtifact } from '../lib/api';
+import { type Overview, type OverviewVenueRow, useArtifact } from '../lib/api';
 import { formatBps, formatPercent, formatUsd } from '../lib/format';
 
+/** All critical Binance fields must be non-null for the data to be complete. */
+function isOverviewComplete(data: Overview): boolean {
+  const binance = data.venues?.binance;
+  if (!binance) return true; // No binance section expected — accept as-is.
+  return Object.values(binance).every(
+    (row: OverviewVenueRow) =>
+      row.index_price !== null &&
+      row.futures_price !== null &&
+      row.basis_rate !== null,
+  );
+}
+
 export default function OverviewPage() {
-  const { data, error, loading } = useArtifact<Overview>('/api/overview');
+  const { data, error, loading } = useArtifact<Overview>('/api/overview', {
+    validate: isOverviewComplete,
+  });
 
   return (
     <div className="space-y-6">
