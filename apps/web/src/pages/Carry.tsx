@@ -13,8 +13,15 @@ import { type Carry, useArtifact } from '../lib/api';
 import { formatPercent, formatUsd } from '../lib/format';
 import { useTheme } from '../lib/theme';
 
+/** Carry data is incomplete if the cards object is empty. */
+function isCarryComplete(data: Carry): boolean {
+  return Object.keys(data.cards).length > 0;
+}
+
 export default function CarryPage() {
-  const { data, error, loading } = useArtifact<Carry>('/api/carry');
+  const { data, error, loading } = useArtifact<Carry>('/api/carry', {
+    validate: isCarryComplete,
+  });
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const grid = isDark ? 'oklch(0.28 0.02 250)' : 'oklch(0.92 0.005 240)';

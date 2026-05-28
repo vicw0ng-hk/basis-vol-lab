@@ -3,6 +3,11 @@ import { PageState } from '../components/PageState';
 import { type Signals, useArtifact } from '../lib/api';
 import { formatPercent } from '../lib/format';
 
+/** Signals data is incomplete if the summary array is empty. */
+function isSignalsComplete(data: Signals): boolean {
+  return data.summary.length > 0;
+}
+
 function InfoIcon() {
   return (
     <svg
@@ -24,7 +29,9 @@ function InfoIcon() {
 }
 
 export default function SignalsPage() {
-  const { data, error, loading } = useArtifact<Signals>('/api/signals');
+  const { data, error, loading } = useArtifact<Signals>('/api/signals', {
+    validate: isSignalsComplete,
+  });
 
   return (
     <div className="space-y-6">
