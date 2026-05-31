@@ -67,6 +67,9 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N"]
 [tool.ty.environment]
 python-version = "3.14"
 
+[tool.ty.rules]
+unused-ignore-comment = "ignore"
+
 [tool.pytest.ini_options]
 testpaths = ["tests", "benchmarks"]
 addopts = "--benchmark-disable"
