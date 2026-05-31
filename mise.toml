@@ -24,6 +24,10 @@ run = "uvx ty check --exclude 'notebooks/'"
 description = "Run tests with pytest"
 run = "uv run pytest"
 
+[tasks.bench]
+description = "Run performance benchmarks"
+run = "uv run pytest benchmarks/ --benchmark-only --benchmark-sort=fullname -v -o 'addopts=' -o 'python_files=bench_*.py'"
+
 [tasks.check]
 description = "Run format, lint, typecheck, test, and terraform fmt+validate"
 depends = ["format", "lint", "typecheck", "test", "web:format", "web:lint", "web:typecheck", "tf:fmt", "tf:validate"]
