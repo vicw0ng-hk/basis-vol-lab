@@ -17,6 +17,11 @@ dev = [
     "pytest>=9.0.3",
     "pre-commit>=4.2",
 ]
+notebooks = [
+    "ipykernel>=6.29",
+    "matplotlib>=3.9",
+    "nbformat>=5.10",
+]
 
 [tool.uv.workspace]
 members = [

@@ -63,11 +63,13 @@ interview evidence. They demonstrate rigour, performance awareness, and the
 ability to communicate quantitative work — all recurring signals in Hong Kong
 quant-dev JDs.
 
-#### 1. Validation Report Notebook
+#### ~~1. Validation Report Notebook~~ ✓
 
-- `notebooks/01_iv_greek_validation.ipynb` — pull a Deribit snapshot, run
-  `validate_iv`, plot error distributions by tenor bucket and moneyness.
-- Surface the rendered notebook on the website under `/learn/validation`.
+- `notebooks/01_iv_greek_validation.ipynb` — pulls a Deribit snapshot,
+  runs `validate_iv`, plots error distributions by tenor bucket and
+  moneyness, and cross-checks vectorized Greeks.
+- Learn page: `docs/analytics/07-iv-validation.md` served at
+  `/learn/07-iv-validation`.
 
 #### 2. Performance Benchmarks
 
@@ -128,7 +130,7 @@ requirements.
 
 ### Implementation Order (Recommended)
 
-1. Validation notebook (quick win, reuses existing `validate.py`)
+1. ~~Validation notebook~~ ✓
 2. Performance benchmarks (pytest-benchmark or simple `time.perf_counter`)
 3. Carry/surface notebooks using accumulated Parquet data
 4. Website pages for benchmarks and notebook outputs
