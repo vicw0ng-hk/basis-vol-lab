@@ -136,6 +136,8 @@ async function getJson<T>(
   const MAX_DELAY_MS = 4000;
   // Trigger a bootstrap refresh after this many consecutive 503s.
   const BOOTSTRAP_AFTER = 2;
+  // Re-trigger bootstrap every N additional 503s if the first attempt failed.
+  const BOOTSTRAP_RETRY_EVERY = 5;
   // Max retries for incomplete (validation-failed) responses before accepting.
   const MAX_INCOMPLETE_RETRIES = 10;
 
@@ -176,6 +178,13 @@ async function getJson<T>(
       // to generate the data rather than just retrying the GET forever.
       if (consecutive503 === BOOTSTRAP_AFTER) {
         await bootstrapRefresh();
+      } else if (
+        consecutive503 > BOOTSTRAP_AFTER &&
+        (consecutive503 - BOOTSTRAP_AFTER) % BOOTSTRAP_RETRY_EVERY === 0
+      ) {
+        // Previous bootstrap may have failed (Lambda timeout, network error).
+        // Fire-and-forget a retry without blocking the GET loop.
+        void bootstrapRefresh();
       }
 
       const delay = Math.min(INITIAL_DELAY_MS * attempt, MAX_DELAY_MS);
@@ -222,8 +231,16 @@ export function useArtifact<T>(
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const refresh = useCallback(() => setTick((t) => t + 1), []);
+  // Generation counter incremented *synchronously* on refresh so in-flight
+  // promise callbacks from a previous fetch cycle see the new value before
+  // React re-renders and runs effect cleanup.  This prevents a brief flash
+  // of stale data when a refresh races with a completing fetch.
+  const fetchGenRef = useRef(0);
+
+  const refresh = useCallback(() => {
+    fetchGenRef.current++;
+    setTick((t) => t + 1);
+  }, []);
 
   // Stable ref for validate to avoid re-triggering effects.
   const validateRef = useRef(validate);
@@ -239,6 +256,7 @@ export function useArtifact<T>(
   }, []);
 
   useEffect(() => {
+    const gen = fetchGenRef.current;
     const controller = new AbortController();
     setLoading(true);
     getJson<T>(path, {
@@ -246,19 +264,20 @@ export function useArtifact<T>(
       validate: validateRef.current,
     })
       .then((d) => {
-        if (!controller.signal.aborted) {
+        if (fetchGenRef.current === gen && !controller.signal.aborted) {
           setData(d);
           setError(null);
         }
       })
       .catch((e: unknown) => {
-        if (!controller.signal.aborted) {
+        if (fetchGenRef.current === gen && !controller.signal.aborted) {
           if (e instanceof DOMException && e.name === 'AbortError') return;
           setError(e instanceof Error ? e.message : String(e));
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (fetchGenRef.current === gen && !controller.signal.aborted)
+          setLoading(false);
       });
     return () => {
       controller.abort();
