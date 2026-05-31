@@ -71,15 +71,15 @@ quant-dev JDs.
 - Learn page: `docs/analytics/07-iv-validation.md` served at
   `/learn/07-iv-validation`.
 
-#### 2. Performance Benchmarks
+#### ~~2. Performance Benchmarks~~ ✓
 
-- `benchmarks/bench_iv.py` — time `implied_vol_array` at various chain sizes
-  (100, 1 000, 10 000 options), compare scalar loop vs. NumPy vectorized vs.
-  `ProcessPoolExecutor` for CPU-heavy batches.
-- `benchmarks/bench_greeks.py` — vectorized Greeks throughput.
-- `benchmarks/bench_snapshot.py` — end-to-end snapshot latency breakdown
-  (network I/O vs. compute vs. serialization).
-- Publish a summary table and charts on the website under `/benchmarks`.
+- `benchmarks/bench_iv.py` — `implied_vol_array` at 100 / 1k / 10k chain
+  sizes, scalar loop vs. array wrapper vs. `ProcessPoolExecutor`.
+- `benchmarks/bench_greeks.py` — vectorized Greeks & pricing throughput,
+  scalar loop baseline, PCHIP smile build + eval.
+- `benchmarks/bench_snapshot.py` — compute-only snapshot pipeline: ATM term
+  structure, IV solve, RV estimators, basis curve, funding, JSON serialize.
+- Run with `mise run bench`.
 
 #### 3. Exploratory Analytics Notebooks
 
@@ -131,7 +131,7 @@ requirements.
 ### Implementation Order (Recommended)
 
 1. ~~Validation notebook~~ ✓
-2. Performance benchmarks (pytest-benchmark or simple `time.perf_counter`)
+2. ~~Performance benchmarks~~ ✓
 3. Carry/surface notebooks using accumulated Parquet data
 4. Website pages for benchmarks and notebook outputs
 5. Collection-run metadata and rolling signals

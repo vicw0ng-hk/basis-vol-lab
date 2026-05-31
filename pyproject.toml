@@ -15,6 +15,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "pytest-benchmark>=5.1",
     "pre-commit>=4.2",
 ]
 notebooks = [
@@ -54,6 +55,10 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N"]
 "packages/analytics/src/basis_analytics/realized_vol.py" = ["N803", "N806"]
 "packages/analytics/src/basis_analytics/validate.py" = ["N803", "N806"]
 "packages/analytics/src/basis_analytics/validation.py" = ["N803", "N806"]
+"benchmarks/bench_iv.py" = ["N803", "N806"]
+"benchmarks/bench_greeks.py" = ["N803", "N806"]
+"benchmarks/bench_snapshot.py" = ["N803", "N806"]
+"benchmarks/conftest.py" = ["N803", "N806"]
 "tests/test_pricing.py" = ["N803", "N806"]
 "tests/test_iv.py" = ["N803", "N806"]
 "tests/test_greeks.py" = ["N803", "N806"]
@@ -63,4 +68,5 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "N"]
 python-version = "3.14"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "benchmarks"]
+addopts = "--benchmark-disable"
