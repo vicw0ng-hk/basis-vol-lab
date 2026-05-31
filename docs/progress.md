@@ -65,19 +65,11 @@ quant-dev JDs.
 
 #### 1. Validation Report Notebook
 
-**Why:** Shows you can compare your own pricer outputs against a live venue,
-quantify error, and discuss numerical choices (convergence tolerance, edge
-cases near expiry).
-
 - `notebooks/01_iv_greek_validation.ipynb` — pull a Deribit snapshot, run
   `validate_iv`, plot error distributions by tenor bucket and moneyness.
 - Surface the rendered notebook on the website under `/learn/validation`.
 
 #### 2. Performance Benchmarks
-
-**Why:** Hong Kong roles explicitly mention multithreading, performance, and
-systems knowledge. Benchmarks prove you understand where time goes and can
-reason about vectorization vs. scalar code.
 
 - `benchmarks/bench_iv.py` — time `implied_vol_array` at various chain sizes
   (100, 1 000, 10 000 options), compare scalar loop vs. NumPy vectorized vs.
@@ -88,9 +80,6 @@ reason about vectorization vs. scalar code.
 - Publish a summary table and charts on the website under `/benchmarks`.
 
 #### 3. Exploratory Analytics Notebooks
-
-**Why:** Pandas mastery and the ability to present quantitative analysis
-interactively — exactly what "data skills" means on JDs.
 
 - `notebooks/02_carry_regime_explorer.ipynb` — load accumulated Parquet
   history, compute rolling carry/vol divergence, visualize regime transitions.
