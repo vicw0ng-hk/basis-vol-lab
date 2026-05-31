@@ -18,7 +18,7 @@ run = "uvx ruff check . --fix"
 
 [tasks.typecheck]
 description = "Type-check with ty"
-run = "uvx ty check"
+run = "uvx ty check --exclude 'notebooks/'"
 
 [tasks.test]
 description = "Run tests with pytest"
