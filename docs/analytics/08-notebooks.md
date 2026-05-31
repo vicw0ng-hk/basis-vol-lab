@@ -12,6 +12,7 @@ notebook is self-contained and can be re-run against fresh snapshots.
 | 2 | [Carry Regime Explorer](https://github.com/vicw0ng-hk/basis-vol-lab/blob/master/notebooks/02_carry_regime_explorer.ipynb) | Rolling carry / vol divergence, regime transitions |
 | 3 | [Surface Dynamics](https://github.com/vicw0ng-hk/basis-vol-lab/blob/master/notebooks/03_surface_dynamics.ipynb) | 3-D IV surface, ATM term structure, smile skew |
 | 4 | [RV Estimators](https://github.com/vicw0ng-hk/basis-vol-lab/blob/master/notebooks/04_rv_estimators_comparison.ipynb) | Close-to-close vs Parkinson vs Yang-Zhang RV |
+| 5 | [Concurrency Patterns](https://github.com/vicw0ng-hk/basis-vol-lab/blob/master/notebooks/05_concurrency_patterns.ipynb) | asyncio, threading, multiprocessing, GIL |
 
 ## Key Findings
 
@@ -57,6 +58,23 @@ Binance hourly candles and local Deribit snapshots.
 - **Yang-Zhang**: uses open-high-low-close, most efficient for drift
 - Side-by-side time-series and distribution plots show estimator
   agreement and divergence under different volatility regimes
+
+### Concurrency Patterns (Notebook 5)
+
+Benchmarks Python concurrency primitives on the project's own IV solver
+and REST fetchers.
+
+- **asyncio.gather** delivers 3–4× speedup on concurrent REST calls by
+  overlapping network wait on a single thread
+- **Threading** gives zero speedup for CPU-bound Brent IV solves — the
+  GIL serialises pure-Python bytecode
+- **ProcessPoolExecutor** achieves true parallelism by bypassing the GIL
+  but only pays off for large chains (≥ 1 000 options) due to
+  serialisation overhead
+- **NumPy vectorization** outperforms all Python-level strategies for
+  array math by running in GIL-released C extensions
+- Production choice: asyncio for I/O + NumPy for compute; process pools
+  reserved for batch sizes beyond typical crypto option chains
 
 ## Running the Notebooks
 
