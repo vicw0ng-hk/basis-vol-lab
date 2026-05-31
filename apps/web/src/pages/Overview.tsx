@@ -1,7 +1,12 @@
 import { Card, Stat } from '../components/Card';
 import { PageHeader } from '../components/PageHeader';
 import { PageState } from '../components/PageState';
-import { type Overview, type OverviewVenueRow, useArtifact } from '../lib/api';
+import {
+  type CollectionRuns,
+  type Overview,
+  type OverviewVenueRow,
+  useArtifact,
+} from '../lib/api';
 import {
   formatBps,
   formatCompact,
@@ -21,10 +26,36 @@ function isOverviewComplete(data: Overview): boolean {
   );
 }
 
+function formatDuration(start: string | null, end: string | null): string {
+  if (!start || !end) return '—';
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function statusBadge(status: string) {
+  const colors: Record<string, string> = {
+    completed:
+      'bg-[color:var(--success)]/15 text-[color:var(--success)] border-[color:var(--success)]/30',
+    failed:
+      'bg-[color:var(--destructive)]/15 text-[color:var(--destructive)] border-[color:var(--destructive)]/30',
+    running:
+      'bg-[color:var(--warning)]/15 text-[color:var(--warning)] border-[color:var(--warning)]/30',
+  };
+  return (
+    <span
+      className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium ${colors[status] ?? 'bg-muted text-muted-foreground border-border'}`}
+    >
+      {status}
+    </span>
+  );
+}
+
 export default function OverviewPage() {
   const { data, error, loading } = useArtifact<Overview>('/api/overview', {
     validate: isOverviewComplete,
   });
+  const { data: runsData } = useArtifact<CollectionRuns>('/api/runs');
 
   return (
     <div className="space-y-6">
@@ -140,6 +171,51 @@ export default function OverviewPage() {
                             </td>
                           </tr>
                         ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+
+            {runsData && runsData.runs.length > 0 && (
+              <Card
+                title="Collection Health"
+                subtitle="Recent data-collection runs"
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                      <tr>
+                        <th className="py-2 pr-4">Started</th>
+                        <th className="py-2 pr-4">Venue</th>
+                        <th className="py-2 pr-4">Status</th>
+                        <th className="py-2 pr-4 text-right">Duration</th>
+                        <th className="py-2 pr-4 text-right">Records</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono tabular-nums">
+                      {runsData.runs.slice(0, 10).map((run) => (
+                        <tr
+                          key={run.run_id}
+                          className="border-t border-border/60"
+                        >
+                          <td className="py-1.5 pr-4 text-muted-foreground">
+                            {run.started_at
+                              ? new Date(run.started_at).toLocaleString()
+                              : '—'}
+                          </td>
+                          <td className="py-1.5 pr-4">{run.venue}</td>
+                          <td className="py-1.5 pr-4">
+                            {statusBadge(run.status)}
+                          </td>
+                          <td className="py-1.5 pr-4 text-right">
+                            {formatDuration(run.started_at, run.ended_at)}
+                          </td>
+                          <td className="py-1.5 pr-4 text-right">
+                            {run.records_collected.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

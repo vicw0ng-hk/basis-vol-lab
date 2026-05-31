@@ -87,14 +87,36 @@ export type Carry = {
 
 export type Signals = {
   as_of_snapshot: boolean;
-  note: string;
+  observations?: number;
+  window?: string;
+  note?: string;
   summary: Array<{
     symbol: string;
     currency: string;
     perp_annualized_funding: number | null;
     average_dated_carry: number | null;
+    atm_iv: number | null;
+    open_interest: number | null;
     carry_vol_divergence: number | null;
+    funding_pctile: number | null;
+    carry_pctile: number | null;
+    iv_pctile: number | null;
+    oi_pctile: number | null;
   }>;
+};
+
+export type CollectionRunRow = {
+  run_id: string;
+  venue: string;
+  started_at: string | null;
+  ended_at: string | null;
+  status: string;
+  records_collected: number;
+};
+
+export type CollectionRuns = {
+  runs: CollectionRunRow[];
+  note?: string;
 };
 
 // Track whether a bootstrap refresh is already in-flight so multiple hooks

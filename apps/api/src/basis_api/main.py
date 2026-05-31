@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 from typing import Any
 
@@ -12,6 +13,13 @@ from basis_api.snapshot import run_snapshot
 from basis_api.storage import store_from_env
 
 _store = store_from_env()
+
+# Optional metadata store for collection-run tracking.
+_meta_store: Any = None
+with contextlib.suppress(Exception):
+    from basis_persistence import metadata_store_from_env
+
+    _meta_store = metadata_store_from_env()
 
 app = FastAPI(title="Basis & Vol Lab API", version="0.1.0")
 
@@ -76,12 +84,33 @@ def signals() -> dict[str, Any]:
 @app.post("/api/refresh")
 def refresh() -> dict[str, Any]:
     """Run one refresh and return its summary."""
-    result = run_snapshot(_store)
+    result = run_snapshot(_store, meta_store=_meta_store)
     return {
         "generated_at": result.generated_at.isoformat(),
         "deribit_tickers": result.deribit_tickers,
         "binance_funding_rows": result.binance_funding_rows,
         "store": result.store_repr,
+    }
+
+
+@app.get("/api/runs")
+def runs() -> dict[str, Any]:
+    """Return recent collection runs for operational health monitoring."""
+    if _meta_store is None:
+        return {"runs": [], "note": "Metadata store not configured."}
+    raw_runs = _meta_store.get_runs()
+    return {
+        "runs": [
+            {
+                "run_id": r.run_id,
+                "venue": r.venue.value if hasattr(r.venue, "value") else str(r.venue),
+                "started_at": r.started_at.isoformat() if r.started_at else None,
+                "ended_at": r.ended_at.isoformat() if r.ended_at else None,
+                "status": r.status,
+                "records_collected": r.records_collected,
+            }
+            for r in raw_runs[:50]
+        ],
     }
 
 

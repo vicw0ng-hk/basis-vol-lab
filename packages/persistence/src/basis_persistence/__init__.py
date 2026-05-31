@@ -2,6 +2,13 @@
 
 from basis_persistence.d1 import D1MetadataStore
 from basis_persistence.metadata import MetadataStore
+from basis_persistence.metadata_factory import metadata_store_from_env
 from basis_persistence.timeseries import TICKER_SCHEMA, TimeSeriesStore
 
-__all__ = ["D1MetadataStore", "MetadataStore", "TICKER_SCHEMA", "TimeSeriesStore"]
+__all__ = [
+    "D1MetadataStore",
+    "MetadataStore",
+    "TICKER_SCHEMA",
+    "TimeSeriesStore",
+    "metadata_store_from_env",
+]

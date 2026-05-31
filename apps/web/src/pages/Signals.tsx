@@ -10,10 +10,17 @@ function isSignalsComplete(data: Signals): boolean {
   return data.summary.length > 0;
 }
 
+function formatPctile(v: number | null | undefined): string {
+  if (v == null) return '—';
+  return `${(v * 100).toFixed(0)}th`;
+}
+
 export default function SignalsPage() {
   const { data, error, loading } = useArtifact<Signals>('/api/signals', {
     validate: isSignalsComplete,
   });
+
+  const hasRolling = data != null && !data.as_of_snapshot;
 
   return (
     <div className="space-y-6">
@@ -36,7 +43,25 @@ export default function SignalsPage() {
                   <div className="font-semibold mb-0.5">
                     Snapshot mode — limited history
                   </div>
-                  <p className="text-muted-foreground">{data.note}</p>
+                  <p className="text-muted-foreground">
+                    {data.note ??
+                      'Rolling-percentile signals appear once the historical snapshot store has enough observations.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {hasRolling && (
+              <div className="flex items-start gap-3 rounded-lg border border-[color:var(--success)]/40 bg-[color:var(--success)]/10 p-4 text-sm">
+                <InfoIcon />
+                <div>
+                  <div className="font-semibold mb-0.5">
+                    Rolling percentiles active
+                  </div>
+                  <p className="text-muted-foreground">
+                    Based on {data.observations ?? 0} observations over a{' '}
+                    {data.window ?? '365D'} window.
+                  </p>
                 </div>
               </div>
             )}
@@ -53,7 +78,7 @@ export default function SignalsPage() {
                   <Card
                     key={row.symbol}
                     title={`${row.symbol} · Carry-vol divergence`}
-                    subtitle={`${row.currency} regime snapshot`}
+                    subtitle={`${row.currency} regime ${hasRolling ? 'percentile' : 'snapshot'}`}
                   >
                     <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                       <Stat
@@ -70,7 +95,39 @@ export default function SignalsPage() {
                         tone={divergenceTone}
                         hint="Positive = perp carry rich vs term curve"
                       />
+                      {hasRolling && (
+                        <Stat
+                          label="ATM IV"
+                          value={formatPercent(row.atm_iv, 1)}
+                        />
+                      )}
                     </div>
+
+                    {hasRolling && (
+                      <div className="mt-4 border-t border-border pt-4">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                          Percentile Ranks
+                        </h4>
+                        <div className="grid grid-cols-4 gap-3">
+                          <Stat
+                            label="Funding"
+                            value={formatPctile(row.funding_pctile)}
+                          />
+                          <Stat
+                            label="Carry"
+                            value={formatPctile(row.carry_pctile)}
+                          />
+                          <Stat
+                            label="IV"
+                            value={formatPctile(row.iv_pctile)}
+                          />
+                          <Stat
+                            label="OI"
+                            value={formatPctile(row.oi_pctile)}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </Card>
                 );
               })}
@@ -86,9 +143,10 @@ export default function SignalsPage() {
                     Carry-vol divergence:
                   </span>{' '}
                   rolling-percentile-rank(annualized carry) minus
-                  rolling-percentile-rank(IV − RV). The snapshot view above is a
-                  raw funding-vs-carry proxy until the rolling window is
-                  populated.
+                  rolling-percentile-rank(IV − RV).{' '}
+                  {data.as_of_snapshot
+                    ? 'The snapshot view above is a raw funding-vs-carry proxy until the rolling window is populated.'
+                    : `Currently computed over ${data.observations ?? 0} observations.`}
                 </li>
                 <li>
                   <span className="text-foreground font-medium">

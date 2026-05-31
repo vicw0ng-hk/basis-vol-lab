@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import math
 import os
+import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -15,16 +16,18 @@ from typing import Any
 import httpx
 import pandas as pd
 from basis_analytics.carry import annualized_carry, annualized_funding
+from basis_analytics.signals import rolling_signals
 from basis_analytics.surface import atm_term_structure
 from basis_connectors.binance import BinanceRestClient
 from basis_connectors.deribit.parsers import parse_instrument_name
 from basis_connectors.proxy import get_proxy_url
 from basis_contracts import (
     AssetKind,
+    CollectionRun,
     TickerSnapshot,
     Venue,
 )
-from basis_persistence import TimeSeriesStore
+from basis_persistence import MetadataStore, TimeSeriesStore, metadata_store_from_env
 
 from basis_api.storage import ArtifactStore, LocalArtifactStore, store_from_env
 
@@ -460,38 +463,103 @@ def _build_carry(
     return {"cards": cards}
 
 
-def _build_signals(carry: dict[str, Any]) -> dict[str, Any]:
-    """Compute the current snapshot-level headline signals."""
+def _build_signals(
+    carry: dict[str, Any],
+    vol: dict[str, Any],
+    store: ArtifactStore,
+    asof: datetime,
+) -> dict[str, Any]:
+    """Compute headline signals with rolling percentiles when history exists."""
     cards = carry.get("cards", {})
-    summary: list[dict[str, Any]] = []
+
+    # Collect current snapshot metrics for each symbol.
+    current_rows: list[dict[str, Any]] = []
     for sym, card in cards.items():
         ann_fund = card.get("perp_annualized_funding")
         dated = card.get("dated_carry") or []
         avg_dated_carry = (
             sum(d["annualized_carry"] for d in dated) / len(dated) if dated else None
         )
-        summary.append(
+        # ATM IV from vol artifact (average across expiries for this currency).
+        ccy = card.get("currency", sym.replace("USDT", ""))
+        atm_iv = _extract_atm_iv(vol, ccy)
+        # Total OI from carry card's dated futures.
+        total_oi = sum(d.get("future_price", 0) for d in dated) if dated else None
+
+        current_rows.append(
             {
                 "symbol": sym,
-                "currency": card.get("currency"),
-                "perp_annualized_funding": ann_fund,
+                "timestamp": asof.isoformat(),
+                "annualized_funding": ann_fund,
                 "average_dated_carry": avg_dated_carry,
-                "carry_vol_divergence": (
-                    _safe_diff(ann_fund, avg_dated_carry)
-                    if ann_fund is not None and avg_dated_carry is not None
-                    else None
-                ),
+                "atm_iv": atm_iv,
+                "open_interest": total_oi if total_oi else None,
             }
         )
 
-    return {
-        "as_of_snapshot": True,
-        "note": (
-            "Rolling-percentile signals appear once the historical snapshot "
-            "store has enough observations."
-        ),
-        "summary": summary,
-    }
+    # Load existing signal history, append new rows, persist.
+    history_rows = _load_signal_history(store)
+    history_rows.extend(current_rows)
+    # Trim to last ~2000 observations per symbol to bound storage.
+    history_rows = _trim_history(history_rows, max_per_symbol=2000)
+    _save_signal_history(store, history_rows)
+
+    # Build DataFrame and compute rolling signals.
+    if not history_rows:
+        return {
+            "as_of_snapshot": True,
+            "note": (
+                "Rolling-percentile signals appear once the historical snapshot "
+                "store has enough observations."
+            ),
+            "summary": [],
+        }
+
+    df = pd.DataFrame(history_rows)
+    return rolling_signals(df)
+
+
+def _extract_atm_iv(vol: dict[str, Any], ccy: str) -> float | None:
+    """Extract average ATM IV for a currency from the vol artifact."""
+    by_ccy = vol.get("by_currency", {})
+    ccy_data = by_ccy.get(ccy)
+    if not ccy_data:
+        return None
+    atm_points = ccy_data.get("atm_term_structure", [])
+    if not atm_points:
+        return None
+    ivs = [p["mark_iv"] for p in atm_points if p.get("mark_iv") is not None]
+    return sum(ivs) / len(ivs) if ivs else None
+
+
+def _load_signal_history(store: ArtifactStore) -> list[dict[str, Any]]:
+    """Load accumulated signal history from the artifact store."""
+    try:
+        data = store.read_json("signal_history.json")
+        return list(data.get("rows", []))
+    except FileNotFoundError:
+        return []
+
+
+def _save_signal_history(store: ArtifactStore, rows: list[dict[str, Any]]) -> None:
+    """Persist signal history to the artifact store."""
+    store.write_json("signal_history.json", {"rows": rows})
+
+
+def _trim_history(
+    rows: list[dict[str, Any]], *, max_per_symbol: int = 2000
+) -> list[dict[str, Any]]:
+    """Keep only the most recent observations per symbol."""
+    by_sym: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        sym = r.get("symbol", "")
+        by_sym.setdefault(sym, []).append(r)
+    result: list[dict[str, Any]] = []
+    for sym_rows in by_sym.values():
+        sym_rows.sort(key=lambda r: r.get("timestamp", ""))
+        result.extend(sym_rows[-max_per_symbol:])
+    result.sort(key=lambda r: r.get("timestamp", ""))
+    return result
 
 
 def _safe_diff(a: float | None, b: float | None) -> float | None:
@@ -512,59 +580,92 @@ _ARTIFACT_NAMES = (
 
 
 async def _run_snapshot_async(
-    store: ArtifactStore, scratch_dir: Path
+    store: ArtifactStore,
+    scratch_dir: Path,
+    meta_store: MetadataStore | None = None,
 ) -> SnapshotResult:
     asof = datetime.now(tz=UTC)
+    run_id = str(uuid.uuid4())
 
-    btc_task = asyncio.create_task(_pull_deribit("BTC", asof))
-    eth_task = asyncio.create_task(_pull_deribit("ETH", asof))
-    binance_task = asyncio.create_task(_pull_binance(["BTCUSDT", "ETHUSDT"]))
-    (btc_opts, btc_futs), (eth_opts, eth_futs), binance = await asyncio.gather(
-        btc_task, eth_task, binance_task
-    )
+    # Record collection run start.
+    if meta_store is not None:
+        run = CollectionRun(
+            run_id=run_id,
+            venue=Venue.DERIBIT,
+            started_at=asof,
+        )
+        meta_store.insert_run(run)
 
-    deribit_options = btc_opts + eth_opts
-    deribit_futures = btc_futs + eth_futs
+    try:
+        btc_task = asyncio.create_task(_pull_deribit("BTC", asof))
+        eth_task = asyncio.create_task(_pull_deribit("ETH", asof))
+        binance_task = asyncio.create_task(_pull_binance(["BTCUSDT", "ETHUSDT"]))
+        (btc_opts, btc_futs), (eth_opts, eth_futs), binance = await asyncio.gather(
+            btc_task, eth_task, binance_task
+        )
 
-    ts_store = TimeSeriesStore(scratch_dir)
-    parquet_paths = ts_store.write_snapshots(deribit_options + deribit_futures)
-    parquet_keys: list[str] = []
-    for path in parquet_paths:
-        rel = path.relative_to(scratch_dir).as_posix()
-        key = f"parquet/{rel}"
-        store.write_parquet(key, path.read_bytes())
-        parquet_keys.append(key)
+        deribit_options = btc_opts + eth_opts
+        deribit_futures = btc_futs + eth_futs
 
-    overview = _build_overview(binance, deribit_futures)
-    vol = _build_vol(deribit_options, deribit_futures, asof)
-    carry = _build_carry(binance, deribit_futures, asof)
-    signals = _build_signals(carry)
-    meta = {
-        "generated_at": asof.isoformat(),
-        "deribit_options": len(deribit_options),
-        "deribit_futures": len(deribit_futures),
-        "binance_symbols": sorted(binance.funding.keys()),
-        "binance_funding_rows": sum(len(v) for v in binance.funding.values()),
-    }
+        ts_store = TimeSeriesStore(scratch_dir)
+        parquet_paths = ts_store.write_snapshots(deribit_options + deribit_futures)
+        parquet_keys: list[str] = []
+        for path in parquet_paths:
+            rel = path.relative_to(scratch_dir).as_posix()
+            key = f"parquet/{rel}"
+            store.write_parquet(key, path.read_bytes())
+            parquet_keys.append(key)
 
-    payloads: dict[str, Any] = {
-        "meta.json": meta,
-        "overview.json": overview,
-        "vol.json": vol,
-        "carry.json": carry,
-        "signals.json": signals,
-    }
-    for name in _ARTIFACT_NAMES:
-        store.write_json(name, payloads[name])
+        overview = _build_overview(binance, deribit_futures)
+        vol = _build_vol(deribit_options, deribit_futures, asof)
+        carry = _build_carry(binance, deribit_futures, asof)
+        signals = _build_signals(carry, vol, store, asof)
 
-    return SnapshotResult(
-        generated_at=asof,
-        deribit_tickers=len(deribit_options) + len(deribit_futures),
-        binance_funding_rows=meta["binance_funding_rows"],
-        store_repr=repr(store),
-        artifact_names=list(_ARTIFACT_NAMES),
-        parquet_keys=parquet_keys,
-    )
+        records = len(deribit_options) + len(deribit_futures)
+        meta = {
+            "generated_at": asof.isoformat(),
+            "deribit_options": len(deribit_options),
+            "deribit_futures": len(deribit_futures),
+            "binance_symbols": sorted(binance.funding.keys()),
+            "binance_funding_rows": sum(len(v) for v in binance.funding.values()),
+        }
+
+        payloads: dict[str, Any] = {
+            "meta.json": meta,
+            "overview.json": overview,
+            "vol.json": vol,
+            "carry.json": carry,
+            "signals.json": signals,
+        }
+        for name in _ARTIFACT_NAMES:
+            store.write_json(name, payloads[name])
+
+        # Record collection run success.
+        if meta_store is not None:
+            meta_store.finish_run(
+                run_id,
+                ended_at=datetime.now(tz=UTC),
+                status="completed",
+                records_collected=records,
+            )
+
+        return SnapshotResult(
+            generated_at=asof,
+            deribit_tickers=records,
+            binance_funding_rows=meta["binance_funding_rows"],
+            store_repr=repr(store),
+            artifact_names=list(_ARTIFACT_NAMES),
+            parquet_keys=parquet_keys,
+        )
+    except Exception:
+        if meta_store is not None:
+            meta_store.finish_run(
+                run_id,
+                ended_at=datetime.now(tz=UTC),
+                status="failed",
+                records_collected=0,
+            )
+        raise
 
 
 def _default_scratch_dir(store: ArtifactStore) -> Path:
@@ -578,6 +679,7 @@ def run_snapshot(
     store: ArtifactStore | Path | str | None = None,
     *,
     scratch_dir: Path | str | None = None,
+    meta_store: MetadataStore | None = None,
 ) -> SnapshotResult:
     """Run one snapshot end-to-end."""
     if store is None:
@@ -592,7 +694,13 @@ def run_snapshot(
         if scratch_dir is not None
         else _default_scratch_dir(artifact_store)
     )
-    return asyncio.run(_run_snapshot_async(artifact_store, scratch))
+
+    # Auto-create metadata store from env if not provided.
+    if meta_store is None:
+        with contextlib.suppress(Exception):
+            meta_store = metadata_store_from_env()  # type: ignore[assignment]  # ty: ignore[invalid-assignment]
+
+    return asyncio.run(_run_snapshot_async(artifact_store, scratch, meta_store))
 
 
 def main() -> int:
