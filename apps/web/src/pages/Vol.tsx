@@ -8,25 +8,16 @@ import {
   YAxis,
 } from 'recharts';
 import { Card } from '../components/Card';
+import { PageHeader } from '../components/PageHeader';
 import { PageState } from '../components/PageState';
 import { useArtifact, type Vol } from '../lib/api';
+import { chartTokens } from '../lib/chart';
 import { formatPercent } from '../lib/format';
 import { useTheme } from '../lib/theme';
 
 /** Vol data is incomplete if no currency entries are present. */
 function isVolComplete(data: Vol): boolean {
   return Object.keys(data.by_currency).length > 0;
-}
-
-function chartTokens(isDark: boolean) {
-  return {
-    grid: isDark ? 'oklch(0.28 0.02 250)' : 'oklch(0.92 0.005 240)',
-    axis: isDark ? 'oklch(0.7 0.02 240)' : 'oklch(0.45 0.02 250)',
-    line1: 'var(--color-chart-1)',
-    line2: 'var(--color-chart-2)',
-    bg: isDark ? 'oklch(0.2 0.015 250)' : 'white',
-    fg: isDark ? 'oklch(0.96 0.005 240)' : 'oklch(0.18 0.02 250)',
-  };
 }
 
 export default function VolPage() {
@@ -38,13 +29,10 @@ export default function VolPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Volatility</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          ATM term structure and front-end smile, computed from Deribit option
-          marks aligned to dated futures.
-        </p>
-      </header>
+      <PageHeader
+        title="Volatility"
+        subtitle="ATM term structure and front-end smile, computed from Deribit option marks aligned to dated futures."
+      />
 
       <PageState
         loading={loading}

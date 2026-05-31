@@ -11,11 +11,18 @@ export function formatBps(x: number | null | undefined): string {
   return `${(x * 10_000).toFixed(1)} bps`;
 }
 
+const defaultUsdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 2,
+});
+
 export function formatUsd(
   x: number | null | undefined,
   opts: Intl.NumberFormatOptions = {},
 ): string {
   if (x === null || x === undefined || Number.isNaN(x)) return '—';
+  if (Object.keys(opts).length === 0) return defaultUsdFormatter.format(x);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -24,12 +31,14 @@ export function formatUsd(
   }).format(x);
 }
 
+const compactFormatter = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
 export function formatCompact(x: number | null | undefined): string {
   if (x === null || x === undefined || Number.isNaN(x)) return '—';
-  return new Intl.NumberFormat('en-US', {
-    notation: 'compact',
-    maximumFractionDigits: 2,
-  }).format(x);
+  return compactFormatter.format(x);
 }
 
 export function formatRelative(iso: string | null | undefined): string {
