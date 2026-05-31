@@ -155,7 +155,6 @@ not use paid always-on compute for this demo.
 - [docs/analytics/README.md](docs/analytics/README.md) - Learn-page content.
 - [docs/progress.md](docs/progress.md) - current status and next work.
 - [infra/terraform/README.md](infra/terraform/README.md) - deployment notes.
-- [infra/docker/](infra/docker/) - Docker Compose for local development.
 - [.github/copilot-instructions.md](.github/copilot-instructions.md) - repo
   conventions for AI-assisted work.
 
