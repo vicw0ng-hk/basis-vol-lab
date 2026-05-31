@@ -6,6 +6,7 @@ TEXT to match D1's lack of native datetime type.
 """
 
 import sqlite3
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -55,7 +56,12 @@ class MetadataStore:
     """
 
     def __init__(self, db_path: str | Path = ":memory:") -> None:
-        self._conn = sqlite3.connect(str(db_path))
+        # check_same_thread=False allows the connection to be used across
+        # threads (FastAPI dispatches sync endpoints to a threadpool, and
+        # Lambda may reuse a warm container across requests handled by
+        # different worker threads). A lock serializes access.
+        self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
+        self._lock = threading.Lock()
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.executescript(_SCHEMA)
@@ -64,30 +70,31 @@ class MetadataStore:
 
     def upsert_instrument(self, inst: Instrument) -> None:
         """Insert or update an instrument."""
-        self._conn.execute(
-            """
-            INSERT INTO instruments
-                (venue, symbol, currency, asset_kind,
-                 expiry, strike, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(venue, symbol) DO UPDATE SET
-                currency   = excluded.currency,
-                asset_kind = excluded.asset_kind,
-                expiry     = excluded.expiry,
-                strike     = excluded.strike,
-                is_active  = excluded.is_active
-            """,
-            (
-                inst.venue.value,
-                inst.symbol,
-                inst.currency.value,
-                inst.asset_kind.value,
-                _ts_to_text(inst.expiry),
-                inst.strike,
-                int(inst.is_active),
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO instruments
+                    (venue, symbol, currency, asset_kind,
+                     expiry, strike, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(venue, symbol) DO UPDATE SET
+                    currency   = excluded.currency,
+                    asset_kind = excluded.asset_kind,
+                    expiry     = excluded.expiry,
+                    strike     = excluded.strike,
+                    is_active  = excluded.is_active
+                """,
+                (
+                    inst.venue.value,
+                    inst.symbol,
+                    inst.currency.value,
+                    inst.asset_kind.value,
+                    _ts_to_text(inst.expiry),
+                    inst.strike,
+                    int(inst.is_active),
+                ),
+            )
+            self._conn.commit()
 
     def get_instruments(
         self,
@@ -113,10 +120,11 @@ class MetadataStore:
 
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         cols = "venue, symbol, currency, asset_kind, expiry, strike, is_active"
-        rows = self._conn.execute(
-            f"SELECT {cols} FROM instruments{where}",  # noqa: S608
-            params,
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                f"SELECT {cols} FROM instruments{where}",  # noqa: S608
+                params,
+            ).fetchall()
 
         return [
             Instrument(
@@ -135,23 +143,24 @@ class MetadataStore:
 
     def insert_run(self, run: CollectionRun) -> None:
         """Record a new collection run."""
-        self._conn.execute(
-            """
-            INSERT INTO collection_runs
-                (run_id, venue, started_at, ended_at,
-                 status, records_collected)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                run.run_id,
-                run.venue.value,
-                _ts_to_text(run.started_at),
-                _ts_to_text(run.ended_at),
-                run.status,
-                run.records_collected,
-            ),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """
+                INSERT INTO collection_runs
+                    (run_id, venue, started_at, ended_at,
+                     status, records_collected)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run.run_id,
+                    run.venue.value,
+                    _ts_to_text(run.started_at),
+                    _ts_to_text(run.ended_at),
+                    run.status,
+                    run.records_collected,
+                ),
+            )
+            self._conn.commit()
 
     def finish_run(
         self,
@@ -162,29 +171,32 @@ class MetadataStore:
         records_collected: int = 0,
     ) -> None:
         """Mark a collection run as finished."""
-        self._conn.execute(
-            """
-            UPDATE collection_runs
-            SET ended_at = ?, status = ?, records_collected = ?
-            WHERE run_id = ?
-            """,
-            (_ts_to_text(ended_at), status, records_collected, run_id),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """
+                UPDATE collection_runs
+                SET ended_at = ?, status = ?, records_collected = ?
+                WHERE run_id = ?
+                """,
+                (_ts_to_text(ended_at), status, records_collected, run_id),
+            )
+            self._conn.commit()
 
     def get_runs(self, venue: Venue | None = None) -> list[CollectionRun]:
         """List collection runs, optionally filtered by venue."""
-        if venue is not None:
-            rows = self._conn.execute(
-                "SELECT run_id, venue, started_at, ended_at, status, records_collected "
-                "FROM collection_runs WHERE venue = ? ORDER BY started_at DESC",
-                (venue.value,),
-            ).fetchall()
-        else:
-            rows = self._conn.execute(
-                "SELECT run_id, venue, started_at, ended_at, status, records_collected "
-                "FROM collection_runs ORDER BY started_at DESC",
-            ).fetchall()
+        cols = "run_id, venue, started_at, ended_at, status, records_collected"
+        with self._lock:
+            if venue is not None:
+                rows = self._conn.execute(
+                    f"SELECT {cols} FROM collection_runs "  # noqa: S608
+                    "WHERE venue = ? ORDER BY started_at DESC",
+                    (venue.value,),
+                ).fetchall()
+            else:
+                rows = self._conn.execute(
+                    f"SELECT {cols} FROM collection_runs "  # noqa: S608
+                    "ORDER BY started_at DESC",
+                ).fetchall()
 
         return [
             CollectionRun(
@@ -200,4 +212,5 @@ class MetadataStore:
 
     def close(self) -> None:
         """Close the underlying connection."""
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
