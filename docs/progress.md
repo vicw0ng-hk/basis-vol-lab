@@ -136,7 +136,7 @@ requirements.
 
 1. ~~Validation notebook~~ ✓
 2. ~~Performance benchmarks~~ ✓
-3. Carry/surface notebooks using accumulated Parquet data
+3. ~~Carry/surface notebooks using accumulated Parquet data~~ ✓
 4. ~~Website pages for benchmarks and notebook outputs~~ ✓
 5. Collection-run metadata and rolling signals
 6. Historical replay page
