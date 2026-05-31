@@ -17,6 +17,11 @@ curated artifacts and Parquet snapshots, and D1 is provisioned for metadata.
 - Local persistence through SQLite metadata and Parquet time series.
 - Snapshot orchestrator that emits `meta`, `overview`, `vol`, `carry`, and
   `signals` JSON artifacts.
+- Collection-run metadata tracked in SQLite/D1: start/end, status, record
+  count. `GET /api/runs` endpoint and Overview page health table.
+- Rolling-percentile regime signals: accumulated `signal_history.json`,
+  per-symbol percentile ranks (funding, carry, ATM IV, OI), adaptive
+  frontend (snapshot mode vs rolling mode).
 - FastAPI service with read endpoints and `POST /api/refresh`.
 - Vite/React/Tailwind dashboard with light/dark theme support.
 - Biome formatting and linting for TypeScript/React (`mise run web:lint`).
@@ -38,9 +43,10 @@ curated artifacts and Parquet snapshots, and D1 is provisioned for metadata.
   The snapshot runner now tries proxy, proxy with extended timeout, then
   direct connection, falling back gracefully. Set `BASIS_PROXY_URLS` to
   route through an allowed region if direct access fails.
-- Rolling-percentile signals need more accumulated history before replacing
-  the current snapshot-level signal view.
-- Historical replay, Greek validation reporting, and D1-backed run metadata
+- Rolling-percentile signals need more accumulated history before the
+  percentile ranks become statistically meaningful (≥ 5 observations per
+  symbol triggers rolling mode, but 30+ is ideal).
+- Historical replay, Greek validation reporting, and concurrency deep-dive
   are useful follow-ups but not required for the deployed demo.
 
 ## Gap Analysis
@@ -53,7 +59,7 @@ curated artifacts and Parquet snapshots, and D1 is provisioned for metadata.
 | Async I/O & concurrency | Dual-exchange WebSocket/REST collectors with heartbeat and reconnect |
 | Cloud & IaC | Terraform-managed Cloudflare Pages/R2/D1 + AWS Lambda/API Gateway |
 | CI/CD | GitHub Actions lint → typecheck → test → deploy pipeline (Python + TypeScript) |
-| Testing | 110 pytest cases covering pricing, edge cases, vectorization, parsing |
+| Testing | 122 pytest cases covering pricing, edge cases, vectorization, parsing, rolling signals |
 | Data engineering | Parquet time-series store, 15-min cron snapshots, curated JSON artifacts |
 | Trader-facing product | 5-page React dashboard: overview, vol surface, carry, signals, learn |
 
@@ -107,17 +113,27 @@ quant-dev JDs.
 
 ### Missing — Medium Priority
 
-#### 5. Collection-Run Metadata in D1
+#### ~~5. Collection-Run Metadata in D1~~ ✓
 
 Record `CollectionRun` rows (start, end, status, artifact count) in D1 so
-the dashboard can show operational health and uptime history. Demonstrates
-production-awareness and observability thinking.
+the dashboard can show operational health and uptime history.
 
-#### 6. Rolling-Percentile Signals
+- `metadata_store_from_env()` factory creates SQLite or D1 store from env.
+- Snapshot pipeline records `CollectionRun` on start, updates on finish/fail.
+- `GET /api/runs` endpoint returns recent runs.
+- Overview page shows a "Collection Health" table with status, duration, and
+  record counts.
+
+#### ~~6. Rolling-Percentile Signals~~ ✓
 
 Replace snapshot-level signal approximations with true rolling percentiles
-over accumulated R2 history. This makes the signals page meaningful and
-shows time-series engineering with Pandas `rolling()`.
+over accumulated history.
+
+- `rolling_signals()` in `basis_analytics.signals` computes per-symbol
+  percentile ranks (funding, carry, ATM IV, OI) from a history DataFrame.
+- `signal_history.json` artifact accumulates metrics across snapshots.
+- Signals page shows percentile ranks and adapts display when rolling data
+  is available vs snapshot-only mode.
 
 #### 7. Historical Replay Page
 
@@ -138,5 +154,5 @@ requirements.
 2. ~~Performance benchmarks~~ ✓
 3. ~~Carry/surface notebooks using accumulated Parquet data~~ ✓
 4. ~~Website pages for benchmarks and notebook outputs~~ ✓
-5. Collection-run metadata and rolling signals
+5. ~~Collection-run metadata and rolling signals~~ ✓
 6. Historical replay page

@@ -13,6 +13,7 @@ from basis_analytics.signals import (
     carry_vol_divergence,
     percentile_rank,
     regime_change_alert,
+    rolling_signals,
     skew_stress,
 )
 from basis_analytics.surface import atm_term_structure, smile_interp
@@ -38,6 +39,7 @@ __all__ = [
     "parkinson_rv",
     "percentile_rank",
     "regime_change_alert",
+    "rolling_signals",
     "skew_stress",
     "smile_interp",
     "summarize_by_tenor",
