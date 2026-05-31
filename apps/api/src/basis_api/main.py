@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import os
 import re
-from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -13,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from basis_api.history import get_history_dates, get_history_snapshot
 from basis_api.snapshot import run_snapshot
-from basis_api.storage import LocalArtifactStore, store_from_env
+from basis_api.storage import store_from_env
 
 _store = store_from_env()
 
@@ -117,17 +116,10 @@ def runs() -> dict[str, Any]:
     }
 
 
-def _data_dir() -> Path:
-    """Resolve the data directory from the artifact store or env."""
-    if isinstance(_store, LocalArtifactStore):
-        return _store.base_dir
-    return Path(os.environ.get("BASIS_DATA_DIR", "data"))
-
-
 @app.get("/api/history/dates")
 def history_dates() -> dict[str, Any]:
     """List available historical snapshot dates."""
-    dates = get_history_dates(_data_dir())
+    dates = get_history_dates(_store)
     return {"dates": dates}
 
 
@@ -138,7 +130,7 @@ def history_snapshot(date: str) -> dict[str, Any]:
         raise HTTPException(
             status_code=400, detail="Invalid date format, expected YYYY-MM-DD"
         )
-    result = get_history_snapshot(_data_dir(), date)
+    result = get_history_snapshot(_store, date)
     if result.get("empty"):
         raise HTTPException(status_code=404, detail=f"No snapshot data for {date}")
     return result

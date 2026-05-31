@@ -148,14 +148,16 @@ class TestHistoryDatesEndpoint:
     def test_returns_dates(
         self, tmp_path: Path, mem_store: InMemoryArtifactStore
     ) -> None:
+        from basis_api.storage import LocalArtifactStore
+
         ts = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
         ts_store = TimeSeriesStore(tmp_path / "parquet")
         ts_store.write_snapshots([_perp(ts)])
+        local_store = LocalArtifactStore(tmp_path)
 
         with (
-            patch("basis_api.main._store", mem_store),
+            patch("basis_api.main._store", local_store),
             patch("basis_api.main._meta_store", None),
-            patch("basis_api.main._data_dir", return_value=tmp_path),
         ):
             from basis_api.main import app
 
@@ -168,10 +170,13 @@ class TestHistoryDatesEndpoint:
     def test_empty_store(
         self, tmp_path: Path, mem_store: InMemoryArtifactStore
     ) -> None:
+        from basis_api.storage import LocalArtifactStore
+
+        local_store = LocalArtifactStore(tmp_path)
+
         with (
-            patch("basis_api.main._store", mem_store),
+            patch("basis_api.main._store", local_store),
             patch("basis_api.main._meta_store", None),
-            patch("basis_api.main._data_dir", return_value=tmp_path),
         ):
             from basis_api.main import app
 
@@ -184,17 +189,19 @@ class TestHistoryDatesEndpoint:
 
 class TestHistorySnapshotEndpoint:
     def test_invalid_date_format(self, client: TestClient) -> None:
-        with patch("basis_api.main._data_dir", return_value=Path("/tmp")):
-            r = client.get("/api/history/not-a-date")
+        r = client.get("/api/history/not-a-date")
         assert r.status_code == 400
 
     def test_missing_date_returns_404(
         self, tmp_path: Path, mem_store: InMemoryArtifactStore
     ) -> None:
+        from basis_api.storage import LocalArtifactStore
+
+        local_store = LocalArtifactStore(tmp_path)
+
         with (
-            patch("basis_api.main._store", mem_store),
+            patch("basis_api.main._store", local_store),
             patch("basis_api.main._meta_store", None),
-            patch("basis_api.main._data_dir", return_value=tmp_path),
         ):
             from basis_api.main import app
 
@@ -206,14 +213,16 @@ class TestHistorySnapshotEndpoint:
     def test_valid_date_returns_summary(
         self, tmp_path: Path, mem_store: InMemoryArtifactStore
     ) -> None:
+        from basis_api.storage import LocalArtifactStore
+
         ts = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
         ts_store = TimeSeriesStore(tmp_path / "parquet")
         ts_store.write_snapshots([_perp(ts)])
+        local_store = LocalArtifactStore(tmp_path)
 
         with (
-            patch("basis_api.main._store", mem_store),
+            patch("basis_api.main._store", local_store),
             patch("basis_api.main._meta_store", None),
-            patch("basis_api.main._data_dir", return_value=tmp_path),
         ):
             from basis_api.main import app
 

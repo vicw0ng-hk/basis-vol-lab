@@ -21,6 +21,10 @@ class ArtifactStore(Protocol):
 
     def write_parquet(self, key: str, data: bytes) -> None: ...
 
+    def read_parquet(self, key: str) -> bytes: ...
+
+    def list_parquet_dates(self, venue: str) -> list[str]: ...
+
 
 def _dump_json(payload: Any) -> str:
     """Canonical JSON serialisation shared by every backend."""
@@ -62,6 +66,22 @@ class LocalArtifactStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
 
+    def read_parquet(self, key: str) -> bytes:
+        path = self._base / key
+        if not path.exists():
+            raise FileNotFoundError(f"parquet {key!r} not found at {path}")
+        return path.read_bytes()
+
+    def list_parquet_dates(self, venue: str) -> list[str]:
+        venue_dir = self._base / "parquet" / venue
+        if not venue_dir.exists():
+            return []
+        return sorted(
+            d.name
+            for d in venue_dir.iterdir()
+            if d.is_dir() and not d.name.startswith(".")
+        )
+
     def __repr__(self) -> str:
         return f"LocalArtifactStore({self._base})"
 
@@ -84,6 +104,22 @@ class InMemoryArtifactStore:
 
     def write_parquet(self, key: str, data: bytes) -> None:
         self.parquet_blobs[key] = bytes(data)
+
+    def read_parquet(self, key: str) -> bytes:
+        if key not in self.parquet_blobs:
+            raise FileNotFoundError(f"parquet {key!r} not found in memory store")
+        return self.parquet_blobs[key]
+
+    def list_parquet_dates(self, venue: str) -> list[str]:
+        prefix = f"parquet/{venue}/"
+        dates: set[str] = set()
+        for k in self.parquet_blobs:
+            if k.startswith(prefix):
+                # Keys are like "parquet/{venue}/{date}/tickers.parquet"
+                parts = k[len(prefix) :].split("/")
+                if parts:
+                    dates.add(parts[0])
+        return sorted(dates)
 
 
 class R2ArtifactStore:
@@ -161,6 +197,29 @@ class R2ArtifactStore:
             Body=bytes(data),
             ContentType="application/octet-stream",
         )
+
+    def read_parquet(self, key: str) -> bytes:
+        s3_key = self._full_key(key)
+        try:
+            obj = self._client.get_object(Bucket=self._bucket, Key=s3_key)
+        except self._client.exceptions.NoSuchKey as exc:
+            raise FileNotFoundError(
+                f"parquet {key!r} not found at s3://{self._bucket}/{s3_key}"
+            ) from exc
+        return obj["Body"].read()
+
+    def list_parquet_dates(self, venue: str) -> list[str]:
+        prefix = self._full_key(f"parquet/{venue}/")
+        paginator = self._client.get_paginator("list_objects_v2")
+        dates: set[str] = set()
+        for page in paginator.paginate(Bucket=self._bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                # Keys are like "{prefix}parquet/{venue}/{date}/tickers.parquet"
+                suffix = obj["Key"][len(prefix) :]
+                parts = suffix.split("/")
+                if parts:
+                    dates.add(parts[0])
+        return sorted(dates)
 
     def __repr__(self) -> str:
         return f"R2ArtifactStore(s3://{self._bucket}/{self._prefix or ''})"
