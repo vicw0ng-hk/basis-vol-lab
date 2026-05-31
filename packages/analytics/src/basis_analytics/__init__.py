@@ -8,7 +8,7 @@ from basis_analytics.carry import (
 from basis_analytics.greeks import Greeks, black76_greeks
 from basis_analytics.iv import implied_vol_array, implied_vol_black76
 from basis_analytics.pricing import black76_price
-from basis_analytics.realized_vol import close_to_close_rv, parkinson_rv
+from basis_analytics.realized_vol import close_to_close_rv, parkinson_rv, yang_zhang_rv
 from basis_analytics.signals import (
     carry_vol_divergence,
     percentile_rank,
@@ -42,4 +42,5 @@ __all__ = [
     "smile_interp",
     "summarize_by_tenor",
     "validate_iv",
+    "yang_zhang_rv",
 ]
