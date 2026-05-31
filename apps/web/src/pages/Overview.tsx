@@ -1,7 +1,13 @@
 import { Card, Stat } from '../components/Card';
+import { PageHeader } from '../components/PageHeader';
 import { PageState } from '../components/PageState';
 import { type Overview, type OverviewVenueRow, useArtifact } from '../lib/api';
-import { formatBps, formatPercent, formatUsd } from '../lib/format';
+import {
+  formatBps,
+  formatCompact,
+  formatPercent,
+  formatUsd,
+} from '../lib/format';
 
 /** All critical Binance fields must be non-null for the data to be complete. */
 function isOverviewComplete(data: Overview): boolean {
@@ -22,13 +28,10 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Cross-venue snapshot: perp funding, futures basis, and open interest
-          for BTC and ETH.
-        </p>
-      </header>
+      <PageHeader
+        title="Overview"
+        subtitle="Cross-venue snapshot: perp funding, futures basis, and open interest for BTC and ETH."
+      />
 
       <PageState
         loading={loading}
@@ -133,10 +136,7 @@ export default function OverviewPage() {
                             <td className="py-1.5 pr-4 text-right">
                               {r.open_interest === null
                                 ? '—'
-                                : new Intl.NumberFormat('en-US', {
-                                    notation: 'compact',
-                                    maximumFractionDigits: 1,
-                                  }).format(r.open_interest)}
+                                : formatCompact(r.open_interest)}
                             </td>
                           </tr>
                         ))}

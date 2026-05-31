@@ -1,4 +1,6 @@
 import { Card, Stat } from '../components/Card';
+import { InfoIcon } from '../components/Icons';
+import { PageHeader } from '../components/PageHeader';
 import { PageState } from '../components/PageState';
 import { type Signals, useArtifact } from '../lib/api';
 import { formatPercent } from '../lib/format';
@@ -8,26 +10,6 @@ function isSignalsComplete(data: Signals): boolean {
   return data.summary.length > 0;
 }
 
-function InfoIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="mt-0.5 shrink-0 text-[color:var(--warning)]"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 16v-4" />
-      <path d="M12 8h.01" />
-    </svg>
-  );
-}
-
 export default function SignalsPage() {
   const { data, error, loading } = useArtifact<Signals>('/api/signals', {
     validate: isSignalsComplete,
@@ -35,13 +17,10 @@ export default function SignalsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Signals</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Three headline regime signals: carry-vol divergence, skew stress,
-          regime-change alert.
-        </p>
-      </header>
+      <PageHeader
+        title="Signals"
+        subtitle="Three headline regime signals: carry-vol divergence, skew stress, regime-change alert."
+      />
 
       <PageState
         loading={loading}
