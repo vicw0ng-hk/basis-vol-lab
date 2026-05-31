@@ -23,12 +23,20 @@ curated artifacts and Parquet snapshots, and D1 is provisioned for metadata.
   when the API has no cached artifacts.
 - Terraform-managed Cloudflare Pages/R2/D1 plus AWS Lambda/API Gateway.
 - GitHub Actions CI, snapshot cron, and uptime probe.
+- Docker Compose local development stack (`infra/docker/`).
+- Binance connection retry/fallback (proxy → proxy+extended timeout → direct)
+  with diagnostic logging and pre-flight connectivity checks.
+- Frontend staleness indicator for irregular snapshot scheduling.
 
 ## Known Limits
 
-- GitHub-hosted runners are US-based, so Binance Futures pulls can return
-  HTTP 451 without a proxy. Set the `BASIS_PROXY_URLS` secret to route
-  Binance traffic through an allowed region (e.g. Japan).
+- GitHub Actions free-tier cron is best-effort; `*/15` typically runs every
+  1–5 hours. The frontend displays a staleness warning when data is older
+  than 30 minutes.
+- GitHub-hosted runners are US-based, so Binance Futures may be geo-blocked.
+  The snapshot runner now tries proxy, proxy with extended timeout, then
+  direct connection, falling back gracefully. Set `BASIS_PROXY_URLS` to
+  route through an allowed region if direct access fails.
 - Rolling-percentile signals need more accumulated history before replacing
   the current snapshot-level signal view.
 - Historical replay, Greek validation reporting, and D1-backed run metadata
@@ -51,7 +59,7 @@ curated artifacts and Parquet snapshots, and D1 is provisioned for metadata.
 | Async I/O & concurrency | Dual-exchange WebSocket/REST collectors with heartbeat and reconnect |
 | Cloud & IaC | Terraform-managed Cloudflare Pages/R2/D1 + AWS Lambda/API Gateway |
 | CI/CD | GitHub Actions lint → typecheck → test → deploy pipeline (Python + TypeScript) |
-| Testing | 44+ pytest cases covering pricing, edge cases, vectorization, parsing |
+| Testing | 110 pytest cases covering pricing, edge cases, vectorization, parsing |
 | Data engineering | Parquet time-series store, 15-min cron snapshots, curated JSON artifacts |
 | Trader-facing product | 5-page React dashboard: overview, vol surface, carry, signals, learn |
 
