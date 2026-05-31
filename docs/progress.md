@@ -42,16 +42,9 @@ curated artifacts and Parquet snapshots, and D1 is provisioned for metadata.
 - Historical replay, Greek validation reporting, and D1-backed run metadata
   are useful follow-ups but not required for the deployed demo.
 
-## Next Candidates
+## Gap Analysis
 
-1. Record each refresh as a `CollectionRun` in local SQLite and cloud D1.
-2. Replace snapshot-level signals with rolling percentiles once enough R2
-   history exists.
-3. Add a historical replay page backed by the accumulated Parquet snapshots.
-
-## Interview-Readiness Gap Analysis
-
-### Already Demonstrable (CV-ready)
+### Already Demonstrable
 
 | Skill Signal | Evidence |
 |---|---|
