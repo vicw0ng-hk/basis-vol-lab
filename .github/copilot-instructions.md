@@ -18,6 +18,7 @@ packages/analytics    Pricing, IV, Greeks, RV, carry, surface, signals
 packages/contracts    Shared models and enums
 packages/persistence  SQLite/D1 metadata and Parquet/R2 storage
 infra/terraform       Cloudflare and AWS infrastructure
+infra/docker          Docker Compose for local development
 docs/analytics        Learn-page markdown
 tests                 Pytest suite
 ```
@@ -64,10 +65,15 @@ mise run check
 
 ## Development Workflow
 
-Follow trunk-based development with short-lived feature branches:
+Follow trunk-based development with short-lived feature branches.
 
-1. **Branch** – Create a feature branch from `master`:
-   `git checkout -b feat/<short-description>` (or `fix/`, `chore/`).
+> **Never commit directly to `master`.** Always create a feature branch
+> first — even for one-line fixes. This applies to both human and
+> AI-assisted work.
+
+1. **Branch** – Create a feature branch from `master` **before making any
+   changes**: `git checkout -b feat/<short-description>` (or `fix/`,
+   `chore/`, `docs/`).
 2. **Commit** – Make small, atomic commits with conventional messages
    (`feat:`, `fix:`, `chore:`, `docs:`). Keep each commit buildable.
 3. **Check** – Run the full check suite before pushing (see below).

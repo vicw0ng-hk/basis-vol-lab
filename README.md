@@ -36,6 +36,7 @@ packages/analytics    Pricing, IV, Greeks, RV, carry, surface, signals
 packages/contracts    Shared models and enums
 packages/persistence  SQLite/D1 metadata and Parquet/R2 time series
 infra/terraform       Cloudflare, AWS, and HCP Terraform config
+infra/docker          Docker Compose for local development
 docs/analytics        Markdown used by the Learn page
 tests                 Pytest suite
 ```
@@ -52,9 +53,9 @@ Deribit/Binance -> connectors -> contracts -> persistence
 
 ## Local Run
 
-Prerequisites: [`uv`](https://docs.astral.sh/uv/),
-[`mise`](https://mise.jdx.dev/), and
-[`bun`](https://bun.sh/) (JavaScript runtime for `apps/web`).
+Prerequisites: [`uv`](https://docs.astral.sh/uv/) and
+[`mise`](https://mise.jdx.dev/). Non-Python tools (`bun`, `terraform`)
+are managed by `mise` and installed automatically via `mise install`.
 
 ```bash
 uv sync
@@ -124,7 +125,7 @@ Production is deployed at <https://basis.vsh852.com>.
 | Artifacts | Cloudflare R2 |
 | Metadata | Cloudflare D1 |
 | Infrastructure | Terraform via HCP Terraform |
-| Freshness | `POST /api/refresh` plus a best-effort GitHub Actions snapshot cron |
+| Freshness | `POST /api/refresh` plus a best-effort GitHub Actions cron (runs every 1–5 hours due to free-tier scheduling) |
 | Uptime | Hourly GitHub Actions probe |
 
 Cost rule: stay inside free tiers. Do not use D1 for raw market data, and do
@@ -132,9 +133,15 @@ not use paid always-on compute for this demo.
 
 ## Limits
 
+- GitHub Actions scheduled workflows on free-tier repos run on a best-effort
+  basis. The `*/15` cron schedule often fires once every 1–5 hours. The
+  frontend shows a staleness indicator (⚠) when snapshot data is older than
+  30 minutes.
 - Binance Futures is geo-restricted in several jurisdictions, including the
-  United States. GitHub-hosted runners can return HTTP 451 for Binance futures
-  endpoints; Deribit snapshots still land.
+  United States. The snapshot runner tries multiple connection strategies
+  (proxy, proxy with extended timeout, direct) and falls back gracefully.
+  A pre-flight connectivity check step in the workflow logs the runner region
+  and reachability of each exchange.
 - Binance futures WebSocket market streams use
   `wss://fstream.binance.com/market/stream?streams=...`; legacy `/ws` and
   `/stream` paths can ACK subscriptions without sending market frames.
@@ -148,6 +155,7 @@ not use paid always-on compute for this demo.
 - [docs/analytics/README.md](docs/analytics/README.md) - Learn-page content.
 - [docs/progress.md](docs/progress.md) - current status and next work.
 - [infra/terraform/README.md](infra/terraform/README.md) - deployment notes.
+- [infra/docker/](infra/docker/) - Docker Compose for local development.
 - [.github/copilot-instructions.md](.github/copilot-instructions.md) - repo
   conventions for AI-assisted work.
 
