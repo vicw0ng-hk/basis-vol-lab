@@ -11,8 +11,9 @@ curated artifacts and Parquet snapshots, and D1 is provisioned for metadata.
 - `uv` workspace with `mise` tasks, Ruff, Pyright, pytest, and CI.
 - Shared contracts for instruments, ticker snapshots, venues, and asset kinds.
 - Deribit and Binance public REST/WebSocket connectors.
-- Analytics for Black-76 pricing, IV inversion, Greeks, realized volatility,
-  carry/funding, smile interpolation, term structure, and headline signals.
+- Analytics for Black-76 pricing, IV inversion, Greeks, realized volatility
+  (close-to-close, Parkinson, Yang-Zhang), carry/funding, smile
+  interpolation, term structure, and headline signals.
 - Local persistence through SQLite metadata and Parquet time series.
 - Snapshot orchestrator that emits `meta`, `overview`, `vol`, `carry`, and
   `signals` JSON artifacts.
@@ -81,14 +82,17 @@ quant-dev JDs.
   structure, IV solve, RV estimators, basis curve, funding, JSON serialize.
 - Run with `mise run bench`.
 
-#### 3. Exploratory Analytics Notebooks
+#### ~~3. Exploratory Analytics Notebooks~~ ✓
 
-- `notebooks/02_carry_regime_explorer.ipynb` — load accumulated Parquet
-  history, compute rolling carry/vol divergence, visualize regime transitions.
-- `notebooks/03_surface_dynamics.ipynb` — animate IV surface evolution over
-  time, show term-structure slope changes and smile shape shifts.
-- `notebooks/04_rv_estimators_comparison.ipynb` — compare close-to-close vs.
-  Parkinson vs. Yang-Zhang estimators on real BTC data.
+- `notebooks/02_carry_regime_explorer.ipynb` — loads accumulated Parquet
+  history, computes rolling carry/vol divergence, visualizes regime
+  transitions with percentile-rank signals.
+- `notebooks/03_surface_dynamics.ipynb` — 3-D IV surface, ATM term-structure
+  evolution, smile shape shifts, skew/butterfly metrics over time.
+- `notebooks/04_rv_estimators_comparison.ipynb` — compares close-to-close vs.
+  Parkinson vs. Yang-Zhang estimators on Binance OHLC and Deribit snapshot
+  data.
+- Yang-Zhang estimator added to `basis_analytics.realized_vol`.
 - Render key notebook outputs (charts, tables) as static assets served on the
   website's Learn section.
 
