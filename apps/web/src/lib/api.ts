@@ -119,6 +119,44 @@ export type CollectionRuns = {
   note?: string;
 };
 
+export type HistoryDates = {
+  dates: string[];
+};
+
+export type AtmIvChange = {
+  current: number | null;
+  previous: number | null;
+  delta: number | null;
+};
+
+export type HistoryDiff = {
+  previous_date: string;
+  option_count_delta: number;
+  future_count_delta: number;
+  oi_change: number | null;
+  atm_iv_changes: Record<string, AtmIvChange>;
+};
+
+export type HistoryFuture = {
+  symbol: string;
+  kind: string;
+  expiry: string | null;
+  mark_price: number;
+  open_interest: number | null;
+};
+
+export type HistorySnapshot = {
+  date: string;
+  timestamp: string | null;
+  option_count: number;
+  future_count: number;
+  total_open_interest: number;
+  avg_atm_iv: Record<string, number | null>;
+  atm_term_structure: Record<string, AtmTermPoint[]>;
+  futures: Record<string, HistoryFuture[]>;
+  diff: HistoryDiff | null;
+};
+
 // Track whether a bootstrap refresh is already in-flight so multiple hooks
 // don't trigger concurrent refreshes.
 let _bootstrapInFlight: Promise<void> | null = null;

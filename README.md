@@ -16,6 +16,8 @@ The app has five user-facing views:
   volatility context.
 - **Carry** - perp funding, dated-futures basis, and carry/vol divergence.
 - **Signals** - the current headline regime signals.
+- **History** - browse historical Deribit snapshots by date with day-over-day
+  change summaries.
 - **Learn** - short notes explaining the analytics behind the dashboard.
 
 Headline signals:

@@ -61,7 +61,7 @@ curated artifacts and Parquet snapshots, and D1 is provisioned for metadata.
 | CI/CD | GitHub Actions lint → typecheck → test → deploy pipeline (Python + TypeScript) |
 | Testing | 122 pytest cases covering pricing, edge cases, vectorization, parsing, rolling signals |
 | Data engineering | Parquet time-series store, 15-min cron snapshots, curated JSON artifacts |
-| Trader-facing product | 5-page React dashboard: overview, vol surface, carry, signals, learn |
+| Trader-facing product | 6-page React dashboard: overview, vol surface, carry, signals, history, learn |
 
 ### Missing — High Priority
 
@@ -135,11 +135,17 @@ over accumulated history.
 - Signals page shows percentile ranks and adapts display when rolling data
   is available vs snapshot-only mode.
 
-#### 7. Historical Replay Page
+#### ~~7. Historical Replay Page~~ ✓
 
 Load Parquet snapshots by date, show "what changed?" summaries, and let users
-scrub through time. Exercises DuckDB/PyArrow query patterns and frontend
-state management.
+scrub through time. Deribit snapshots are loaded from the Parquet store,
+recomputed into ATM term structures, and compared day-over-day.
+
+- `GET /api/history/dates` lists available snapshot dates.
+- `GET /api/history/{date}` returns summary stats, ATM IV, futures data, and
+  a diff against the previous day.
+- `/history` page with date selector, summary cards, term-structure charts,
+  futures tables, and day-over-day change panel.
 
 #### 8. Concurrency Deep-Dive Notebook
 
@@ -155,4 +161,4 @@ requirements.
 3. ~~Carry/surface notebooks using accumulated Parquet data~~ ✓
 4. ~~Website pages for benchmarks and notebook outputs~~ ✓
 5. ~~Collection-run metadata and rolling signals~~ ✓
-6. Historical replay page
+6. ~~Historical replay page~~ ✓

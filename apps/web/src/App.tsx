@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
 import BenchmarksPage from './pages/Benchmarks';
 import CarryPage from './pages/Carry';
+import HistoryPage from './pages/History';
 import LearnPage from './pages/Learn';
 import OverviewPage from './pages/Overview';
 import SignalsPage from './pages/Signals';
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/vol" element={<VolPage />} />
           <Route path="/carry" element={<CarryPage />} />
           <Route path="/signals" element={<SignalsPage />} />
+          <Route path="/history" element={<HistoryPage />} />
           <Route path="/benchmarks" element={<BenchmarksPage />} />
           <Route path="/learn" element={<LearnPage />} />
           <Route path="/learn/:slug" element={<LearnPage />} />

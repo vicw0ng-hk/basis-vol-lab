@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { type Meta, triggerRefresh, useArtifact } from '../lib/api';
 import { formatRelative, isStale } from '../lib/format';
-import { ActivityIcon, MenuIcon, RefreshIcon, XIcon } from './Icons';
+import {
+  ActivityIcon,
+  GitHubIcon,
+  MenuIcon,
+  RefreshIcon,
+  XIcon,
+} from './Icons';
 import { ThemeToggle } from './ThemeToggle';
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
@@ -14,6 +20,7 @@ const NAV = [
   { to: '/vol', label: 'Volatility' },
   { to: '/carry', label: 'Carry' },
   { to: '/signals', label: 'Signals' },
+  { to: '/history', label: 'History' },
   { to: '/benchmarks', label: 'Benchmarks' },
   { to: '/learn', label: 'Learn' },
 ];
@@ -136,6 +143,7 @@ export function Header() {
             type="button"
             onClick={handleRefresh}
             disabled={refreshing}
+            title="Click to retrieve the latest data immediately"
             className={
               'inline-flex items-center gap-1.5 rounded-md border border-border ' +
               'bg-card px-2.5 py-1.5 text-xs font-medium text-foreground ' +
@@ -170,6 +178,19 @@ export function Header() {
             Auto
           </button>
           <ThemeToggle />
+          <a
+            href="https://github.com/vicw0ng-hk/basis-vol-lab"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View source on GitHub"
+            className={
+              'inline-flex h-9 w-9 items-center justify-center rounded-md ' +
+              'border border-border bg-card text-muted-foreground ' +
+              'hover:text-foreground hover:bg-accent transition-colors'
+            }
+          >
+            <GitHubIcon />
+          </a>
           {/* Mobile menu toggle */}
           <button
             type="button"
