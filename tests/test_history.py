@@ -216,46 +216,64 @@ class TestBuildDiff:
 
 class TestGetHistoryDates:
     def test_lists_dates(self, tmp_path: Path) -> None:
+        from basis_api.storage import LocalArtifactStore
+
         ts1 = datetime(2026, 5, 14, 12, 0, tzinfo=UTC)
         ts2 = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
         _seed_store(tmp_path, 14, [_perp(ts1)])
         _seed_store(tmp_path, 15, [_perp(ts2)])
 
-        dates = get_history_dates(tmp_path)
+        store = LocalArtifactStore(tmp_path)
+        dates = get_history_dates(store)
         assert dates == ["2026-05-14", "2026-05-15"]
 
     def test_empty_store(self, tmp_path: Path) -> None:
-        assert get_history_dates(tmp_path) == []
+        from basis_api.storage import LocalArtifactStore
+
+        store = LocalArtifactStore(tmp_path)
+        assert get_history_dates(store) == []
 
 
 class TestGetHistorySnapshot:
     def test_empty_date(self, tmp_path: Path) -> None:
-        result = get_history_snapshot(tmp_path, "2026-01-01")
+        from basis_api.storage import LocalArtifactStore
+
+        store = LocalArtifactStore(tmp_path)
+        result = get_history_snapshot(store, "2026-01-01")
         assert result["empty"] is True
 
     def test_returns_summary(self, tmp_path: Path) -> None:
+        from basis_api.storage import LocalArtifactStore
+
         ts = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
         _seed_store(tmp_path, 15, [_perp(ts), _future(ts)])
 
-        result = get_history_snapshot(tmp_path, "2026-05-15")
+        store = LocalArtifactStore(tmp_path)
+        result = get_history_snapshot(store, "2026-05-15")
         assert result["empty"] is False
         assert result["date"] == "2026-05-15"
         assert result["future_count"] == 2
         assert result["diff"] is None  # no previous date
 
     def test_includes_diff_when_previous_exists(self, tmp_path: Path) -> None:
+        from basis_api.storage import LocalArtifactStore
+
         ts1 = datetime(2026, 5, 14, 12, 0, tzinfo=UTC)
         ts2 = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
         _seed_store(tmp_path, 14, [_perp(ts1, oi=8000.0)])
         _seed_store(tmp_path, 15, [_perp(ts2, oi=10_000.0)])
 
-        result = get_history_snapshot(tmp_path, "2026-05-15")
+        store = LocalArtifactStore(tmp_path)
+        result = get_history_snapshot(store, "2026-05-15")
         assert result["diff"] is not None
         assert result["diff"]["previous_date"] == "2026-05-14"
 
     def test_first_date_has_no_diff(self, tmp_path: Path) -> None:
+        from basis_api.storage import LocalArtifactStore
+
         ts = datetime(2026, 5, 14, 12, 0, tzinfo=UTC)
         _seed_store(tmp_path, 14, [_perp(ts)])
 
-        result = get_history_snapshot(tmp_path, "2026-05-14")
+        store = LocalArtifactStore(tmp_path)
+        result = get_history_snapshot(store, "2026-05-14")
         assert result["diff"] is None

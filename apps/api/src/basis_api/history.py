@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import io
 import math
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+import pyarrow.parquet as pq
 from basis_analytics.surface import atm_term_structure
 from basis_contracts import AssetKind, TickerSnapshot, Venue
 from basis_persistence import TimeSeriesStore
+from basis_persistence.timeseries import TICKER_SCHEMA, _table_to_snapshots
+
+if TYPE_CHECKING:
+    from basis_api.storage import ArtifactStore
 
 
 def _years_between(start: datetime, end: datetime) -> float:
@@ -149,23 +154,40 @@ def build_diff(current: dict[str, Any], previous: dict[str, Any]) -> dict[str, A
     return changes
 
 
-def get_history_dates(data_dir: Path) -> list[str]:
+def _read_snapshots_from_store(
+    store: ArtifactStore, venue: Venue, date: str
+) -> list[TickerSnapshot]:
+    """Read snapshots from the artifact store (local or R2)."""
+    from basis_api.storage import LocalArtifactStore
+
+    if isinstance(store, LocalArtifactStore):
+        ts_store = TimeSeriesStore(store.base_dir / "parquet")
+        return ts_store.read_snapshots(venue, date)
+
+    key = f"parquet/{venue.value}/{date}/tickers.parquet"
+    try:
+        data = store.read_parquet(key)
+    except FileNotFoundError:
+        return []
+    table = pq.read_table(io.BytesIO(data), schema=TICKER_SCHEMA)
+    return _table_to_snapshots(table)
+
+
+def get_history_dates(store: ArtifactStore) -> list[str]:
     """List available Deribit snapshot dates."""
-    ts_store = TimeSeriesStore(data_dir / "parquet")
-    return ts_store.list_dates(Venue.DERIBIT)
+    return store.list_parquet_dates(Venue.DERIBIT.value)
 
 
-def get_history_snapshot(data_dir: Path, date: str) -> dict[str, Any]:
+def get_history_snapshot(store: ArtifactStore, date: str) -> dict[str, Any]:
     """Load and summarise a historical snapshot for a date."""
-    ts_store = TimeSeriesStore(data_dir / "parquet")
-    snapshots = ts_store.read_snapshots(Venue.DERIBIT, date)
+    snapshots = _read_snapshots_from_store(store, Venue.DERIBIT, date)
     if not snapshots:
         return {"date": date, "empty": True}
 
     summary = _build_date_summary(snapshots, date)
 
     # Try to compute diff with previous date.
-    dates = ts_store.list_dates(Venue.DERIBIT)
+    dates = store.list_parquet_dates(Venue.DERIBIT.value)
     try:
         idx = dates.index(date)
     except ValueError:
@@ -174,7 +196,7 @@ def get_history_snapshot(data_dir: Path, date: str) -> dict[str, Any]:
     diff: dict[str, Any] | None = None
     if idx > 0:
         prev_date = dates[idx - 1]
-        prev_snaps = ts_store.read_snapshots(Venue.DERIBIT, prev_date)
+        prev_snaps = _read_snapshots_from_store(store, Venue.DERIBIT, prev_date)
         if prev_snaps:
             prev_summary = _build_date_summary(prev_snaps, prev_date)
             diff = build_diff(summary, prev_summary)
