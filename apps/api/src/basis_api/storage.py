@@ -103,8 +103,8 @@ class R2ArtifactStore:
         try:
             # isort: off
             # fmt: off
-            import boto3  # type: ignore[import-not-found]  # ty: ignore[unresolved-import]
-            from botocore.config import Config  # type: ignore[import-not-found]  # ty: ignore[unresolved-import]
+            import boto3  # type: ignore[import-not-found]
+            from botocore.config import Config  # type: ignore[import-not-found]
             # fmt: on
             # isort: on
         except ImportError as exc:  # pragma: no cover - exercised in cloud only
