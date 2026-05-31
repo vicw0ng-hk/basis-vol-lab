@@ -43,6 +43,16 @@ export function formatRelative(iso: string | null | undefined): string {
   return `${Math.round(diff / 86400)}d ago`;
 }
 
+/** Data older than 30 minutes is considered stale (GitHub cron is best-effort). */
+const STALE_THRESHOLD_MS = 30 * 60 * 1000;
+
+export function isStale(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  const ts = new Date(iso).getTime();
+  if (Number.isNaN(ts)) return false;
+  return Date.now() - ts > STALE_THRESHOLD_MS;
+}
+
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);

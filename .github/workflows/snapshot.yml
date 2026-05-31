@@ -1,5 +1,8 @@
 name: snapshot
 
+# NOTE: GitHub Actions scheduled workflows on free-tier repos run on a
+# best-effort basis. The */15 cron often fires once every 1-5 hours.
+# The frontend handles this with a staleness indicator.
 on:
   schedule:
     - cron: "*/15 * * * *"
@@ -32,6 +35,22 @@ jobs:
 
       - name: Install workspace (with cloud extras)
         run: uv sync --package basis-api --extra cloud
+
+      - name: Pre-flight connectivity check
+        run: |
+          echo "--- Runner region ---"
+          curl -s --max-time 5 https://ipinfo.io/json | python3 -c "import sys,json; d=json.load(sys.stdin); print(f\"IP: {d.get('ip')} Region: {d.get('region')}, {d.get('country')}\")" || echo "(ipinfo unavailable)"
+          echo "--- Deribit connectivity ---"
+          curl -s --max-time 10 -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" https://www.deribit.com/api/v2/public/get_time || echo "FAILED"
+          echo "--- Binance connectivity (direct) ---"
+          curl -s --max-time 10 -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" https://fapi.binance.com/fapi/v1/ping || echo "FAILED"
+          echo "--- Binance connectivity (proxy) ---"
+          if [ -n "$BASIS_PROXY_URLS" ]; then
+            PROXY_URL=$(echo "$BASIS_PROXY_URLS" | head -1)
+            curl -s --max-time 15 --proxy "$PROXY_URL" -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" https://fapi.binance.com/fapi/v1/ping || echo "FAILED"
+          else
+            echo "(no proxy configured)"
+          fi
 
       - name: Run snapshot
         run: uv run --package basis-api python -m basis_api.snapshot --backend r2

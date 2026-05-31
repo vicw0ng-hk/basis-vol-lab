@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { type Meta, triggerRefresh, useArtifact } from '../lib/api';
-import { formatRelative } from '../lib/format';
+import { formatRelative, isStale } from '../lib/format';
 import { ThemeToggle } from './ThemeToggle';
 
 const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
@@ -196,6 +196,14 @@ export function Header() {
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <span className="hidden text-xs text-muted-foreground sm:inline">
             updated {formatRelative(meta.data?.generated_at)}
+            {meta.data?.generated_at && isStale(meta.data.generated_at) && (
+              <span
+                className="ml-1 text-[color:var(--warning)]"
+                title="Data may be stale — GitHub Actions cron runs are best-effort and may be delayed"
+              >
+                ⚠
+              </span>
+            )}
           </span>
           <button
             type="button"
@@ -274,6 +282,9 @@ export function Header() {
           </div>
           <div className="mt-2 px-3 text-xs text-muted-foreground">
             updated {formatRelative(meta.data?.generated_at)}
+            {meta.data?.generated_at && isStale(meta.data.generated_at) && (
+              <span className="ml-1 text-[color:var(--warning)]">⚠ stale</span>
+            )}
           </div>
         </nav>
       )}

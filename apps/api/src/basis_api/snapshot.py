@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import math
 import os
 from collections.abc import Iterable
@@ -134,7 +135,13 @@ async def _pull_binance(symbols: Iterable[str]) -> _BinanceData:
     basis: dict[str, list[dict[str, Any]]] = {}
     oi: dict[str, list[dict[str, Any]]] = {}
 
-    async with BinanceRestClient(proxy=get_proxy_url()) as client:
+    proxy = get_proxy_url()
+    client = await _connect_binance(proxy)
+    if client is None:
+        # All connection strategies exhausted; return empty data.
+        return _BinanceData(funding=funding, basis=basis, oi=oi)
+
+    async with client:
         for sym in symbols:
             pair = sym  # USDT-M: pair == symbol.
 
@@ -152,6 +159,46 @@ async def _pull_binance(symbols: Iterable[str]) -> _BinanceData:
                 f"oi/{sym}",
             )
     return _BinanceData(funding=funding, basis=basis, oi=oi)
+
+
+async def _connect_binance(proxy: str | None) -> BinanceRestClient | None:
+    """Try multiple connection strategies and return the first working client.
+
+    Strategies attempted in order:
+    1. Proxy (if configured) with default timeout
+    2. Proxy with extended timeout (30s)
+    3. Direct connection (no proxy)
+
+    Logs diagnostic info for each attempt to aid CI debugging.
+    """
+    strategies: list[tuple[str, str | None, float]] = []
+    if proxy:
+        # Mask credentials in log output.
+        masked = proxy.split("@")[-1] if "@" in proxy else proxy
+        strategies.append((f"proxy({masked})", proxy, 15.0))
+        strategies.append((f"proxy({masked},timeout=30s)", proxy, 30.0))
+    strategies.append(("direct", None, 15.0))
+
+    for label, p, timeout in strategies:
+        try:
+            client = BinanceRestClient(proxy=p, timeout=timeout)
+            # Probe connectivity with a lightweight request.
+            await client._client.get(  # noqa: SLF001
+                f"{client._base_url}/fapi/v1/ping",  # noqa: SLF001
+            )
+            print(f"[snapshot] binance connected via {label}")  # noqa: T201
+            return client
+        except Exception as exc:  # noqa: BLE001
+            print(  # noqa: T201
+                f"[snapshot] binance connect failed ({label}): "
+                f"{type(exc).__name__}: {exc}"
+            )
+            # Clean up the failed client.
+            with contextlib.suppress(Exception):
+                await client.aclose()
+
+    print("[snapshot] error: all binance connection strategies exhausted")  # noqa: T201
+    return None
 
 
 async def _pull_funding(client: BinanceRestClient, sym: str) -> list[dict[str, Any]]:
@@ -198,7 +245,9 @@ async def _safe_pull(coro: Any, label: str) -> list[dict[str, Any]]:
     try:
         return await coro
     except Exception as exc:  # noqa: BLE001 - degrade gracefully on any pull failure
-        print(f"[snapshot] warn: {label} failed: {exc}")  # noqa: T201
+        print(  # noqa: T201
+            f"[snapshot] warn: {label} failed: {type(exc).__name__}: {exc}"
+        )
         return []
 
 
