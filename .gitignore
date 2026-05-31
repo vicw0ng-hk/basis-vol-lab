@@ -2,7 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,python,terraform
 
 # Project-specific
-data/
+/data/
 
 ### macOS ###
 # General

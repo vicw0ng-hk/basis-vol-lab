@@ -96,14 +96,14 @@ quant-dev JDs.
 - Render key notebook outputs (charts, tables) as static assets served on the
   website's Learn section.
 
-#### 4. Website Integration for Notebooks & Benchmarks
+#### ~~4. Website Integration for Notebooks & Benchmarks~~ ✓
 
-- Add a `/benchmarks` page showing performance tables, throughput charts, and
-  hardware context (CPU, Python version).
-- Extend `/learn` with rendered notebook outputs (exported HTML or static
-  chart images) so interviewers see the analysis without needing Jupyter.
-- Add an "Engineering" section in the README linking to benchmarks and
-  validation results.
+- `/benchmarks` page with hardware context, grouped performance tables,
+  and throughput bar charts — data generated from pytest-benchmark JSON
+  via `scripts/export_benchmarks.py`.
+- `/learn/08-notebooks` lecture summarising all four notebooks with key
+  findings, auto-discovered by the existing Learn page glob.
+- "Engineering" section added to README linking to benchmarks and notebooks.
 
 ### Missing — Medium Priority
 
@@ -137,6 +137,6 @@ requirements.
 1. ~~Validation notebook~~ ✓
 2. ~~Performance benchmarks~~ ✓
 3. Carry/surface notebooks using accumulated Parquet data
-4. Website pages for benchmarks and notebook outputs
+4. ~~Website pages for benchmarks and notebook outputs~~ ✓
 5. Collection-run metadata and rolling signals
 6. Historical replay page

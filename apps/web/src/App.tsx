@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
+import BenchmarksPage from './pages/Benchmarks';
 import CarryPage from './pages/Carry';
 import LearnPage from './pages/Learn';
 import OverviewPage from './pages/Overview';
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/vol" element={<VolPage />} />
           <Route path="/carry" element={<CarryPage />} />
           <Route path="/signals" element={<SignalsPage />} />
+          <Route path="/benchmarks" element={<BenchmarksPage />} />
           <Route path="/learn" element={<LearnPage />} />
           <Route path="/learn/:slug" element={<LearnPage />} />
           <Route

@@ -150,6 +150,25 @@ not use paid always-on compute for this demo.
 - Rolling percentile signals need enough accumulated history before they are
   statistically meaningful.
 
+## Engineering
+
+The `packages/analytics` engine is tested with both a unit-test suite and
+a benchmark suite. Results are published on the dashboard:
+
+- [**Benchmarks**](https://basis.vsh852.com/benchmarks) — IV inversion,
+  Greeks, and snapshot-pipeline throughput measured with pytest-benchmark.
+- [**Notebooks**](https://basis.vsh852.com/learn/08-notebooks) — Jupyter
+  notebooks that validate the analytics against live Deribit data and
+  compare realised-volatility estimators.
+
+Reproduce locally:
+
+```bash
+mise run bench                              # run benchmarks
+uv run python scripts/export_benchmarks.py  # regenerate web data
+uv run jupyter lab notebooks/               # open notebooks
+```
+
 ## Docs
 
 - [docs/analytics/README.md](docs/analytics/README.md) - Learn-page content.

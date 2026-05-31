@@ -1,0 +1,308 @@
+{
+  "hardware": {
+    "cpu": "Apple A18 Pro",
+    "arch": "arm64",
+    "cores": 6,
+    "python": "3.14.5",
+    "system": "Darwin"
+  },
+  "results": [
+    {
+      "name": "test_greeks_throughput[n=100]",
+      "label": "Vectorized Greeks [n=100]",
+      "category": "greeks",
+      "param": "n=100",
+      "mean_ms": 0.116,
+      "median_ms": 0.082,
+      "stddev_ms": 0.074,
+      "ops": 8647.6,
+      "rounds": 420
+    },
+    {
+      "name": "test_greeks_throughput[n=1k]",
+      "label": "Vectorized Greeks [n=1k]",
+      "category": "greeks",
+      "param": "n=1k",
+      "mean_ms": 0.131,
+      "median_ms": 0.109,
+      "stddev_ms": 0.067,
+      "ops": 7631.5,
+      "rounds": 1394
+    },
+    {
+      "name": "test_greeks_throughput[n=10k]",
+      "label": "Vectorized Greeks [n=10k]",
+      "category": "greeks",
+      "param": "n=10k",
+      "mean_ms": 0.654,
+      "median_ms": 0.575,
+      "stddev_ms": 0.232,
+      "ops": 1529.0,
+      "rounds": 1332
+    },
+    {
+      "name": "test_pricing_throughput[n=100]",
+      "label": "Vectorized Black-76 pricing [n=100]",
+      "category": "greeks",
+      "param": "n=100",
+      "mean_ms": 0.106,
+      "median_ms": 0.085,
+      "stddev_ms": 0.11,
+      "ops": 9478.0,
+      "rounds": 4244
+    },
+    {
+      "name": "test_pricing_throughput[n=1k]",
+      "label": "Vectorized Black-76 pricing [n=1k]",
+      "category": "greeks",
+      "param": "n=1k",
+      "mean_ms": 0.134,
+      "median_ms": 0.124,
+      "stddev_ms": 0.046,
+      "ops": 7480.7,
+      "rounds": 5672
+    },
+    {
+      "name": "test_pricing_throughput[n=10k]",
+      "label": "Vectorized Black-76 pricing [n=10k]",
+      "category": "greeks",
+      "param": "n=10k",
+      "mean_ms": 0.847,
+      "median_ms": 0.754,
+      "stddev_ms": 0.443,
+      "ops": 1181.2,
+      "rounds": 1190
+    },
+    {
+      "name": "test_greeks_scalar_loop[n=100]",
+      "label": "Scalar loop Greeks (baseline) [n=100]",
+      "category": "greeks",
+      "param": "n=100",
+      "mean_ms": 9.698,
+      "median_ms": 6.521,
+      "stddev_ms": 10.869,
+      "ops": 103.1,
+      "rounds": 151
+    },
+    {
+      "name": "test_greeks_scalar_loop[n=1k]",
+      "label": "Scalar loop Greeks (baseline) [n=1k]",
+      "category": "greeks",
+      "param": "n=1k",
+      "mean_ms": 79.035,
+      "median_ms": 68.546,
+      "stddev_ms": 24.508,
+      "ops": 12.7,
+      "rounds": 7
+    },
+    {
+      "name": "test_greeks_scalar_loop[n=10k]",
+      "label": "Scalar loop Greeks (baseline) [n=10k]",
+      "category": "greeks",
+      "param": "n=10k",
+      "mean_ms": 785.767,
+      "median_ms": 764.314,
+      "stddev_ms": 120.773,
+      "ops": 1.3,
+      "rounds": 5
+    },
+    {
+      "name": "test_smile_interp_build",
+      "label": "PCHIP smile build (50 strikes)",
+      "category": "greeks",
+      "param": null,
+      "mean_ms": 0.103,
+      "median_ms": 0.081,
+      "stddev_ms": 0.141,
+      "ops": 9662.7,
+      "rounds": 464
+    },
+    {
+      "name": "test_smile_interp_eval",
+      "label": "PCHIP smile eval (1k queries)",
+      "category": "greeks",
+      "param": null,
+      "mean_ms": 0.013,
+      "median_ms": 0.012,
+      "stddev_ms": 0.005,
+      "ops": 78608.2,
+      "rounds": 1431
+    },
+    {
+      "name": "test_iv_scalar_loop[n=100]",
+      "label": "Scalar loop (baseline) [n=100]",
+      "category": "iv",
+      "param": "n=100",
+      "mean_ms": 100.312,
+      "median_ms": 100.129,
+      "stddev_ms": 2.193,
+      "ops": 10.0,
+      "rounds": 10
+    },
+    {
+      "name": "test_iv_scalar_loop[n=1k]",
+      "label": "Scalar loop (baseline) [n=1k]",
+      "category": "iv",
+      "param": "n=1k",
+      "mean_ms": 986.648,
+      "median_ms": 979.093,
+      "stddev_ms": 14.854,
+      "ops": 1.0,
+      "rounds": 5
+    },
+    {
+      "name": "test_iv_scalar_loop[n=10k]",
+      "label": "Scalar loop (baseline) [n=10k]",
+      "category": "iv",
+      "param": "n=10k",
+      "mean_ms": 11354.501,
+      "median_ms": 11425.055,
+      "stddev_ms": 338.5,
+      "ops": 0.1,
+      "rounds": 5
+    },
+    {
+      "name": "test_iv_array[n=100]",
+      "label": "Vectorized (implied_vol_array) [n=100]",
+      "category": "iv",
+      "param": "n=100",
+      "mean_ms": 117.768,
+      "median_ms": 113.697,
+      "stddev_ms": 10.348,
+      "ops": 8.5,
+      "rounds": 9
+    },
+    {
+      "name": "test_iv_array[n=1k]",
+      "label": "Vectorized (implied_vol_array) [n=1k]",
+      "category": "iv",
+      "param": "n=1k",
+      "mean_ms": 1120.063,
+      "median_ms": 1100.067,
+      "stddev_ms": 59.673,
+      "ops": 0.9,
+      "rounds": 5
+    },
+    {
+      "name": "test_iv_array[n=10k]",
+      "label": "Vectorized (implied_vol_array) [n=10k]",
+      "category": "iv",
+      "param": "n=10k",
+      "mean_ms": 11095.221,
+      "median_ms": 11095.347,
+      "stddev_ms": 309.107,
+      "ops": 0.1,
+      "rounds": 5
+    },
+    {
+      "name": "test_iv_parallel[n=100]",
+      "label": "ProcessPoolExecutor (4 workers) [n=100]",
+      "category": "iv",
+      "param": "n=100",
+      "mean_ms": 1362.982,
+      "median_ms": 1364.09,
+      "stddev_ms": 20.948,
+      "ops": 0.7,
+      "rounds": 5
+    },
+    {
+      "name": "test_iv_parallel[n=1k]",
+      "label": "ProcessPoolExecutor (4 workers) [n=1k]",
+      "category": "iv",
+      "param": "n=1k",
+      "mean_ms": 1911.431,
+      "median_ms": 1831.475,
+      "stddev_ms": 183.579,
+      "ops": 0.5,
+      "rounds": 5
+    },
+    {
+      "name": "test_iv_parallel[n=10k]",
+      "label": "ProcessPoolExecutor (4 workers) [n=10k]",
+      "category": "iv",
+      "param": "n=10k",
+      "mean_ms": 8373.976,
+      "median_ms": 7601.333,
+      "stddev_ms": 1359.751,
+      "ops": 0.1,
+      "rounds": 5
+    },
+    {
+      "name": "test_atm_term_structure",
+      "label": "ATM term structure extraction",
+      "category": "snapshot",
+      "param": null,
+      "mean_ms": 1.196,
+      "median_ms": 1.124,
+      "stddev_ms": 0.202,
+      "ops": 836.4,
+      "rounds": 43
+    },
+    {
+      "name": "test_iv_solve_chain",
+      "label": "IV solve (8 exp \u00d7 40 strikes)",
+      "category": "snapshot",
+      "param": null,
+      "mean_ms": 458.246,
+      "median_ms": 460.667,
+      "stddev_ms": 37.128,
+      "ops": 2.2,
+      "rounds": 5
+    },
+    {
+      "name": "test_close_to_close_rv",
+      "label": "Close-to-close RV (2k bars)",
+      "category": "snapshot",
+      "param": null,
+      "mean_ms": 0.418,
+      "median_ms": 0.393,
+      "stddev_ms": 0.111,
+      "ops": 2393.0,
+      "rounds": 384
+    },
+    {
+      "name": "test_parkinson_rv",
+      "label": "Parkinson RV (2k bars)",
+      "category": "snapshot",
+      "param": null,
+      "mean_ms": 0.557,
+      "median_ms": 0.426,
+      "stddev_ms": 0.396,
+      "ops": 1795.8,
+      "rounds": 1839
+    },
+    {
+      "name": "test_basis_curve",
+      "label": "Basis curve (8 futures)",
+      "category": "snapshot",
+      "param": null,
+      "mean_ms": 0.683,
+      "median_ms": 0.551,
+      "stddev_ms": 0.411,
+      "ops": 1464.8,
+      "rounds": 428
+    },
+    {
+      "name": "test_annualized_funding",
+      "label": "Annualize funding (2k rates)",
+      "category": "snapshot",
+      "param": null,
+      "mean_ms": 0.064,
+      "median_ms": 0.059,
+      "stddev_ms": 0.023,
+      "ops": 15609.0,
+      "rounds": 7844
+    },
+    {
+      "name": "test_snapshot_json_serialize",
+      "label": "JSON serialize snapshot",
+      "category": "snapshot",
+      "param": null,
+      "mean_ms": 0.025,
+      "median_ms": 0.024,
+      "stddev_ms": 0.006,
+      "ops": 39421.0,
+      "rounds": 9483
+    }
+  ]
+}

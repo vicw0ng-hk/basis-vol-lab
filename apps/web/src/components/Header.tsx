@@ -14,6 +14,7 @@ const NAV = [
   { to: '/vol', label: 'Volatility' },
   { to: '/carry', label: 'Carry' },
   { to: '/signals', label: 'Signals' },
+  { to: '/benchmarks', label: 'Benchmarks' },
   { to: '/learn', label: 'Learn' },
 ];
 
