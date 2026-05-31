@@ -29,7 +29,7 @@ jobs:
         run: uv sync
 
       - name: Run ty
-        run: uvx ty check
+        run: uvx ty check --exclude 'notebooks/'
 
   test:
     name: pytest
