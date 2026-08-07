@@ -6,6 +6,28 @@ export function formatPercent(
   return `${(x * 100).toFixed(digits)}%`;
 }
 
+/**
+ * Narrow a Recharts tooltip value to a number.
+ *
+ * Recharts 3 widened its formatter parameter from `number` to
+ * `ValueType | undefined`, i.e. `number | string | (number | string)[]`, because
+ * a tooltip can be fed a stringified or stacked value. Every chart here plots a
+ * single numeric series, so the extra cases are unreachable in practice -- but
+ * they are reachable in the type, and asserting `as number` would push a real
+ * `undefined` into `.toFixed()` and render "NaN%" rather than the em dash the
+ * formatters below already produce for missing data.
+ */
+export function toNumber(x: unknown): number | null {
+  if (typeof x === 'number') return x;
+  // A single-element array is how a stacked series arrives.
+  if (Array.isArray(x)) return x.length === 1 ? toNumber(x[0]) : null;
+  if (typeof x === 'string' && x.trim() !== '') {
+    const parsed = Number(x);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
 export function formatBps(x: number | null | undefined): string {
   if (x === null || x === undefined || Number.isNaN(x)) return '—';
   return `${(x * 10_000).toFixed(1)} bps`;

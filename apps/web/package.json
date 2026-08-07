@@ -13,24 +13,24 @@
     "check": "biome check src/ && tsc -b"
   },
   "dependencies": {
-    "katex": "^0.16.45",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "katex": "^0.18.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^6.28.0",
-    "recharts": "^2.13.3",
+    "react-router-dom": "^7.18.2",
+    "recharts": "^3.10.1",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.16",
-    "@tailwindcss/vite": "^4.0.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^5.0.0",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.6.3",
+    "@biomejs/biome": "^2.5.6",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
     "vite": "npm:rolldown-vite@^7.3.1"
   }
 }

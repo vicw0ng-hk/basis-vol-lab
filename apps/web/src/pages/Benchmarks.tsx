@@ -11,6 +11,7 @@ import { Card, Stat } from '../components/Card';
 import { PageHeader } from '../components/PageHeader';
 import benchmarkData from '../data/benchmarks.json';
 import { chartTokens } from '../lib/chart';
+import { toNumber } from '../lib/format';
 import { useTheme } from '../lib/theme';
 
 type BenchmarkResult = {
@@ -151,10 +152,13 @@ function ThroughputChart({ results }: { results: BenchmarkResult[] }) {
               color: tokens.fg,
               fontSize: 12,
             }}
-            formatter={(value: number) => [
-              `${value.toFixed(1)} ops/s`,
-              'Throughput',
-            ]}
+            formatter={(value) => {
+              const ops = toNumber(value);
+              return [
+                ops === null ? '—' : `${ops.toFixed(1)} ops/s`,
+                'Throughput',
+              ];
+            }}
           />
           <Bar
             dataKey="ops"
