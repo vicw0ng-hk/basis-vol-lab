@@ -10,9 +10,18 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from basis_api.history import get_history_dates, get_history_snapshot
-from basis_api.snapshot import run_snapshot
 from basis_api.storage import store_from_env
+
+# `basis_api.history` and `basis_api.snapshot` are imported inside the
+# endpoints that use them, not here. Module scope runs in Lambda's INIT
+# phase, which on-demand (non-provisioned) functions must finish within
+# 10 s; overrunning it makes Lambda kill init and re-run the whole
+# initialisation inside the invoke, which then burns the 30 s function
+# timeout and returns nothing to the caller. Those two modules pull in
+# pandas, scipy and httpx, none of which any request to /healthz touches;
+# deferring them roughly halves the import (2.07 s -> 1.09 s measured in
+# the deployed image at a 1024 MB vCPU share). See
+# tests/test_api_cold_start.py.
 
 _store = store_from_env()
 
@@ -86,6 +95,8 @@ def signals() -> dict[str, Any]:
 @app.post("/api/refresh")
 def refresh() -> dict[str, Any]:
     """Run one refresh and return its summary."""
+    from basis_api.snapshot import run_snapshot
+
     result = run_snapshot(_store, meta_store=_meta_store)
     return {
         "generated_at": result.generated_at.isoformat(),
@@ -119,6 +130,8 @@ def runs() -> dict[str, Any]:
 @app.get("/api/history/dates")
 def history_dates() -> dict[str, Any]:
     """List available historical snapshot dates."""
+    from basis_api.history import get_history_dates
+
     dates = get_history_dates(_store)
     return {"dates": dates}
 
@@ -126,6 +139,8 @@ def history_dates() -> dict[str, Any]:
 @app.get("/api/history/{date}")
 def history_snapshot(date: str) -> dict[str, Any]:
     """Load a historical snapshot by date (YYYY-MM-DD)."""
+    from basis_api.history import get_history_snapshot
+
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
         raise HTTPException(
             status_code=400, detail="Invalid date format, expected YYYY-MM-DD"
