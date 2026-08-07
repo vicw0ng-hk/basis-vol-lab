@@ -12,7 +12,7 @@ import { PageHeader } from '../components/PageHeader';
 import { PageState } from '../components/PageState';
 import { type Carry, useArtifact } from '../lib/api';
 import { chartTokens } from '../lib/chart';
-import { formatPercent, formatUsd } from '../lib/format';
+import { formatPercent, formatUsd, toNumber } from '../lib/format';
 import { useTheme } from '../lib/theme';
 
 /** Carry data is incomplete if the cards object is empty. */
@@ -99,8 +99,8 @@ export default function CarryPage() {
                               color: fg,
                               fontSize: 12,
                             }}
-                            formatter={(value: number) =>
-                              formatPercent(value, 2)
+                            formatter={(value) =>
+                              formatPercent(toNumber(value), 2)
                             }
                           />
                           <defs>

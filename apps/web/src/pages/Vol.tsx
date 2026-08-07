@@ -12,7 +12,7 @@ import { PageHeader } from '../components/PageHeader';
 import { PageState } from '../components/PageState';
 import { useArtifact, type Vol } from '../lib/api';
 import { chartTokens } from '../lib/chart';
-import { formatPercent } from '../lib/format';
+import { formatPercent, toNumber } from '../lib/format';
 import { useTheme } from '../lib/theme';
 
 /** Vol data is incomplete if no currency entries are present. */
@@ -93,7 +93,9 @@ export default function VolPage() {
                             color: tokens.fg,
                             fontSize: 12,
                           }}
-                          formatter={(value: number) => formatPercent(value, 2)}
+                          formatter={(value) =>
+                            formatPercent(toNumber(value), 2)
+                          }
                           labelFormatter={(_v, payload) =>
                             payload?.[0]?.payload?.expiry ?? ''
                           }
@@ -159,7 +161,9 @@ export default function VolPage() {
                             color: tokens.fg,
                             fontSize: 12,
                           }}
-                          formatter={(value: number) => formatPercent(value, 2)}
+                          formatter={(value) =>
+                            formatPercent(toNumber(value), 2)
+                          }
                           labelFormatter={(_v, payload) =>
                             `K = ${payload?.[0]?.payload?.strike ?? ''}`
                           }
