@@ -25,7 +25,7 @@ RUN bun run build
 # --------------------------------------------------------------------
 # Runtime stage: nginx serving static dist/
 # --------------------------------------------------------------------
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
