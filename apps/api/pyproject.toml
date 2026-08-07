@@ -9,7 +9,7 @@ dependencies = [
     "basis-contracts",
     "basis-persistence",
     "fastapi>=0.115",
-    "uvicorn[standard]>=0.32",
+    "uvicorn[standard]>=0.52.1",
     "mangum>=0.18",
     "httpx>=0.27",
     "pandas>=3.0.5",
