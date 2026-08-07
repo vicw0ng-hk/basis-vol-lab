@@ -18,14 +18,15 @@ import json
 import subprocess
 import sys
 
-# Cost roughly 1.3 s of a 10 s init budget on Graviton at 1024 MB, and no
-# request to `/healthz` touches any of them.
+# Together these cost roughly 1.8 s of a 10 s init budget on Graviton at
+# 1024 MB, and no request to `/healthz` touches any of them.
 #
-# `pyarrow` (a further ~0.45 s) is deliberately absent: `main.py` never
-# imports it, but `basis_persistence/__init__` re-exports `TimeSeriesStore`
-# from `timeseries`, which imports it at module scope. Dropping it needs a
-# lazy re-export in that shared package, which is a separate change.
-HEAVY_MODULES = ("pandas", "scipy", "httpx")
+# `pyarrow` arrives indirectly: `main.py` never imports it, but
+# `basis_persistence/__init__` re-exports `TimeSeriesStore` from
+# `timeseries`, which imports it at module scope. That package re-exports
+# it lazily (PEP 562) so pulling `metadata_store_from_env` at init does
+# not drag Parquet in with it.
+HEAVY_MODULES = ("pandas", "scipy", "httpx", "pyarrow")
 
 
 def _modules_after_importing_main() -> set[str]:
