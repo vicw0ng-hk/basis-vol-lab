@@ -1,10 +1,32 @@
 name: ci
 
 on:
+  # A single `*` does not match a slash, so `["*"]` covered `master` and nothing
+  # else -- no `feat/…`, no `dependabot/uv/…`. Two consequences, and one is worse
+  # than a missing run: a branch excluded by filter reports **pending** rather
+  # than skipped, so a PR from a slashed branch waits on checks that were never
+  # going to start, which reads as CI being broken rather than as a config error.
+  #
+  # Push is master-only, deliberately, rather than widened to `**`. Every change
+  # here arrives by PR, and `pull_request` filters on the *base* branch -- so
+  # `**` on both keys would run all four jobs twice on the same SHA of any open
+  # branch. Dependabot's merged PRs already show the `pull_request` half works:
+  # branch `dependabot/uv/…` onto master, all four checks green.
   push:
-    branches: ["*"]
+    branches: [master]
+  # `**` matches slashes, which is what lets a PR *onto* a `feat/…` branch get
+  # checks at all.
   pull_request:
-    branches: ["*"]
+    branches: ["**"]
+
+# A superseded run reports on a commit nobody is looking at any more. Keyed on
+# the head ref so pushing a fixup cancels the previous run -- Dependabot rebases
+# its branches in place, which without this leaves one run going per rebase.
+# `github.run_id` in the fallback gives each master push its own group, because
+# those must all report.
+concurrency:
+  group: ci-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   lint:
