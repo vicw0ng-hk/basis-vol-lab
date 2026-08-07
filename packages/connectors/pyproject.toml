@@ -6,7 +6,7 @@ requires-python = ">=3.14"
 dependencies = [
     "basis-contracts",
     "httpx>=0.28",
-    "websockets>=14",
+    "websockets>=17.0.1",
 ]
 
 [tool.uv.sources]
