@@ -1,5 +1,11 @@
 node_modules
 dist
+
+# `tsc -b` incremental build cache. Machine-local and rewritten by every build,
+# including the one CI runs, so tracking it put a churning binary-ish blob in
+# diffs that had nothing to do with the change.
+*.tsbuildinfo
+
 .env
 .env.local
 .DS_Store
