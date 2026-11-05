@@ -6,7 +6,7 @@
 # the Learn page imports those .md files at build time via Vite's
 # `import.meta.glob('?raw')`.
 # --------------------------------------------------------------------
-FROM oven/bun:1.3-alpine AS builder
+FROM oven/bun:1.4-alpine AS builder
 WORKDIR /app
 
 COPY apps/web/package.json apps/web/bun.lock* ./
