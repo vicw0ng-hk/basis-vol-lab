@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 import pandas as pd
 
@@ -17,7 +19,9 @@ def close_to_close_rv(
         msg = "prices must have a DatetimeIndex"
         raise TypeError(msg)
 
-    log_returns = np.log(prices / prices.shift(1))
+    # np.log on a Series returns a Series (via __array_ufunc__), but numpy's
+    # stubs type it as NDArray.
+    log_returns = cast("pd.Series", np.log(prices / prices.shift(1)))
     median_dt_seconds = float(
         prices.index.to_series().diff().dropna().dt.total_seconds().median() or 86400.0
     )
@@ -97,16 +101,16 @@ def yang_zhang_rv(
     annualization_factor = annualize * bars_per_day
 
     # Overnight return: log(open_t / close_{t-1})
-    log_oc = np.log(opens / closes.shift(1))
+    log_oc = cast("pd.Series", np.log(opens / closes.shift(1)))
     # Open-to-close return
-    log_co = np.log(closes / opens)
+    log_co = cast("pd.Series", np.log(closes / opens))
 
     # Rogers-Satchell per-bar variance
     log_ho = np.log(highs / opens)
     log_lo = np.log(lows / opens)
     log_hc = np.log(highs / closes)
     log_lc = np.log(lows / closes)
-    rs_var = log_ho * log_hc + log_lo * log_lc
+    rs_var = cast("pd.Series", log_ho * log_hc + log_lo * log_lc)
 
     # Rolling components
     overnight_var = log_oc.rolling(window=window).var()
