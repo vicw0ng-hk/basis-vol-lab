@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -80,7 +81,8 @@ def basis_curve(
     asof_ts = pd.Timestamp(asof)
     if asof_ts.tzinfo is None:
         asof_ts = asof_ts.tz_localize("UTC")
-    days = (exp - asof_ts).total_seconds().to_numpy() / 86400.0
+    # pandas types DatetimeIndex - Timestamp as DatetimeIndex; it is a TimedeltaIndex.
+    days = cast("pd.TimedeltaIndex", exp - asof_ts).total_seconds().to_numpy() / 86400.0
 
     df = pd.DataFrame({"future": fut, "days": days}, index=exp)
     df = df.loc[df["days"] > 0].sort_index()
