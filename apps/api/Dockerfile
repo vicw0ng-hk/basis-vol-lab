@@ -1,7 +1,7 @@
 # --------------------------------------------------------------------
 # Builder stage: install deps with uv, sync the basis-api workspace
 # --------------------------------------------------------------------
-FROM python:3.14-slim AS builder
+FROM python:3.15-slim AS builder
 
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
@@ -34,7 +34,7 @@ RUN uv sync --frozen --package basis-api --no-dev
 # --------------------------------------------------------------------
 # Runtime stage
 # --------------------------------------------------------------------
-FROM python:3.14-slim AS runtime
+FROM python:3.15-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
